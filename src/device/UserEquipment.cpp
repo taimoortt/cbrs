@@ -311,7 +311,9 @@ vector<double> UserEquipment::GetTrace(int timestamp) {
   vector<double> trace;
   for (size_t rbg_id = 0; rbg_id != rsrp_tti.size(); rbg_id++) {
     for (int i = 0; i < RBG_SIZE; i++) {
-      trace.push_back((double)rsrp_tti[rbg_id]);
+      // Real trace values are stored in dBm; internally we operate in dBW
+      // Convert dBm to dBW by subtracting 30
+      trace.push_back((double)rsrp_tti[rbg_id] - 30.0);
     }
   }
   return trace;
@@ -325,7 +327,8 @@ map<int, vector<double>> UserEquipment::GetInterferenceTrace(int timestamp) {
     vector<double> trace;
     for (size_t rbg_id = 0; rbg_id != rsrp_tti.size(); rbg_id++) {
       for (int i = 0; i < RBG_SIZE; i++) {
-        trace.push_back((double)rsrp_tti[rbg_id]);
+        // Convert interference traces from dBm to dBW
+        trace.push_back((double)rsrp_tti[rbg_id] - 30.0);
       }
     }
     interference_trace[pair.first] = trace;

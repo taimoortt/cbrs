@@ -19,7 +19,6 @@
  * Author: Giuseppe Piro <g.piro@poliba.it>
  */
 
-
 #ifndef DOWNLINKPACKETSCHEDULER_H_
 #define DOWNLINKPACKETSCHEDULER_H_
 
@@ -41,46 +40,34 @@ struct SliceContext {
   };
 
 public:
-  int                             num_slices_ = 1;
-  std::vector<double>             weights_;
-  std::vector<SchedulerAlgo>      algo_params_;
-  std::vector<int>                priority_;
-  std::vector<double>             ewma_time_;
+  int num_slices_ = 1;
+  std::vector<double> weights_;
+  std::vector<SchedulerAlgo> algo_params_;
+  std::vector<int> priority_;
+  std::vector<double> ewma_time_;
 };
 
-class DownlinkPacketScheduler: public PacketScheduler {
+class DownlinkPacketScheduler : public PacketScheduler {
 public:
-	DownlinkPacketScheduler(std::string config_fname="");
-	virtual ~DownlinkPacketScheduler();
+  DownlinkPacketScheduler(std::string config_fname = "");
+  virtual ~DownlinkPacketScheduler();
 
-	virtual void SelectFlowsToSchedule ();
+  virtual void SelectFlowsToSchedule();
 
-	virtual void DoSchedule (void);
-	virtual void DoStopSchedule (void);
+  virtual void DoSchedule(void);
+  virtual void DoStopSchedule(void);
 
-	virtual void RBsAllocation ();
+  virtual void RBsAllocation();
   virtual int FinalizeScheduledFlows(void);
-	virtual double ComputeSchedulingMetric (RadioBearer *bearer, double spectralEfficiency, int subChannel) = 0;
+  virtual double ComputeSchedulingMetric(RadioBearer *bearer,
+                                         double spectralEfficiency,
+                                         int subChannel) = 0;
 
-	void UpdateAverageTransmissionRate (void);
+  void UpdateAverageTransmissionRate(void);
   void UpdatePerSlicePerformance(int slice_id, double metric);
   double GetSliceRollingAverage(int slice_id);
 
-
-  SliceContext  slice_ctx_;
-  bool          enable_comp_;
-  bool          enable_tune_weights_;
-  bool          enable_sliceserve_;
-  std::vector<int>    rbs_to_slice_;
-  int           muting_system_;
-  double        max_tp_weight_;
-  bool          do_reallocation_;
-  bool          current_tti_cost_;
-  bool          consider_all_cells_for_int_;
-  bool          user_weights;
-  std::map<int, std::vector<double>> per_slice_performance;
-  std::map<int, double> per_slice_mean_performance;
-
+  SliceContext slice_ctx_;
 };
 
 #endif /* DOWNLINKPACKETSCHEDULER_H_ */

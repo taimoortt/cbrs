@@ -76,7 +76,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
   double duration = _duration;
   double flow_duration = _duration;
   int cluster = 1;
-  double bandwidth = _bandwidth;
+  double bandwidth = 20;
   cout << "Duration: " << duration << endl;
 
   // CREATE COMPONENT MANAGER
@@ -347,9 +347,6 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
       nm->GetENodeBContainer()->push_back(enb);
       eNBs->push_back(enb);
     }
-
-    // nbUE is the number of users that are into each cell at the beginning of
-    // the simulation
     int idUE = 0;
 #ifndef HOTSPOT_DEPLOYMENT
     vector<CartesianCoordinates *> *positions =
@@ -358,25 +355,6 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
 #ifdef HOTSPOT_DEPLOYMENT
     vector<CartesianCoordinates *> *positions =
         GetHotspotUsersDistribution(total_ues);
-    // std::vector<CartesianCoordinates*> *positions = new
-    // vector<CartesianCoordinates*>;  // Initialize the vector
-
-    // CartesianCoordinates* x = new CartesianCoordinates(50., 0.);
-    // x->SetCellID(0);
-    // positions->push_back(x);
-
-    // x = new CartesianCoordinates(-350., 450.);
-    // x->SetCellID(1);
-    // positions->push_back(x);
-
-    // x = new CartesianCoordinates(-350., 100.);
-    // x->SetCellID(1);
-    // positions->push_back(x);
-
-    // x = new CartesianCoordinates(-70., 550.);
-    // x->SetCellID(0);
-    // positions->push_back(x);
-
     // Get User Mobility Patterns
     const Json::Value &mobility_speed = obj["mobility_speed"];
     const Json::Value &mobility_distribution = obj["mobility_distribution"];
@@ -410,10 +388,6 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
     for (double proportion : proportions) {
       sum += proportion;
     }
-    // cout << "Sum: " << sum << endl;
-    // const double epsilon = 1e-9; // Adjust this based on the required
-    // precision assert(std::abs(sum - 1.0) < epsilon); assert that number of
-    // speeds and proportions match
     assert(speeds.size() == proportions.size());
 
     // Generate the mobility array

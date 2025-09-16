@@ -19,216 +19,191 @@
  * Author: Giuseppe Piro <g.piro@poliba.it>
  */
 
-
-
 #include "enb-mac-entity.h"
+#include "../../core/eventScheduler/simulator.h"
+#include "../../core/idealMessages/ideal-control-messages.h"
+#include "../../device/ENodeB.h"
+#include "../../device/NetworkNode.h"
+#include "../../device/UserEquipment.h"
+#include "../../load-parameters.h"
 #include "../packet/Packet.h"
 #include "../packet/packet-burst.h"
 #include "AMCModule.h"
-#include "../../core/idealMessages/ideal-control-messages.h"
-#include "../../device/NetworkNode.h"
 #include "packet-scheduler/packet-scheduler.h"
-#include "../../device/UserEquipment.h"
-#include "../../device/ENodeB.h"
-#include "../../load-parameters.h"
-#include "../../core/eventScheduler/simulator.h"
-#include <fstream>
 #include <cassert>
+#include <fstream>
 #include <sstream>
 #define CQI_INTERVAL 40
 #define MAX_UE_TRACE 149
 #define MAX_TTI_TRACE 399
 
-EnbMacEntity::EnbMacEntity ()
-{
-  SetAmcModule (new AMCModule ());
-  SetDevice (NULL);
+EnbMacEntity::EnbMacEntity() {
+  SetAmcModule(new AMCModule());
+  SetDevice(NULL);
   m_downlinkScheduler = NULL;
   m_uplinkScheduler = NULL;
   cout << "ENB MMAC ENTITY called\n";
-  #ifdef USE_REAL_TRACE
+#ifdef USE_REAL_TRACE
   for (int i = 0; i < MAX_UE_TRACE; i++) {
     m_userMapping.push_back(i);
   }
-  #endif
+#endif
 }
 
-
-EnbMacEntity::~EnbMacEntity ()
-{
+EnbMacEntity::~EnbMacEntity() {
   delete m_downlinkScheduler;
   delete m_uplinkScheduler;
-  Destroy ();
+  Destroy();
 }
 
-
-void
-EnbMacEntity::SetUplinkPacketScheduler (PacketScheduler* s)
-{
+void EnbMacEntity::SetUplinkPacketScheduler(PacketScheduler *s) {
   m_uplinkScheduler = s;
 }
 
-
-void
-EnbMacEntity::SetDownlinkPacketScheduler (PacketScheduler* s)
-{
+void EnbMacEntity::SetDownlinkPacketScheduler(PacketScheduler *s) {
   m_downlinkScheduler = s;
 }
 
-
-PacketScheduler*
-EnbMacEntity::GetUplinkPacketScheduler (void)
-{
+PacketScheduler *EnbMacEntity::GetUplinkPacketScheduler(void) {
   return m_uplinkScheduler;
 }
 
-
-PacketScheduler*
-EnbMacEntity::GetDownlinkPacketScheduler (void)
-{
+PacketScheduler *EnbMacEntity::GetDownlinkPacketScheduler(void) {
   return m_downlinkScheduler;
 }
 
-
-void
-EnbMacEntity::ReceiveCqiIdealControlMessage  (CqiIdealControlMessage* msg)
-{
+void EnbMacEntity::ReceiveCqiIdealControlMessage(CqiIdealControlMessage *msg) {
 #ifdef TEST_CQI_FEEDBACKS
-  std::cout << "ReceiveIdealControlMessage (MAC) from  " << msg->GetSourceDevice ()->GetIDNetworkNode ()
-		  << " to " << msg->GetDestinationDevice ()->GetIDNetworkNode () << std::endl;
+  std::cout << "ReceiveIdealControlMessage (MAC) from  "
+            << msg->GetSourceDevice()->GetIDNetworkNode() << " to "
+            << msg->GetDestinationDevice()->GetIDNetworkNode() << std::endl;
 #endif
 
-  CqiIdealControlMessage::CqiFeedbacks *cqi = msg->GetMessage ();
+  CqiIdealControlMessage::CqiFeedbacks *cqi = msg->GetMessage();
 
-  UserEquipment* ue = (UserEquipment*) msg->GetSourceDevice ();
-  ENodeB* enb = (ENodeB*) GetDevice ();
-  ENodeB::UserEquipmentRecord* record = enb->GetUserEquipmentRecord (ue->GetIDNetworkNode ());
+  UserEquipment *ue = (UserEquipment *)msg->GetSourceDevice();
+  ENodeB *enb = (ENodeB *)GetDevice();
+  ENodeB::UserEquipmentRecord *record =
+      enb->GetUserEquipmentRecord(ue->GetIDNetworkNode());
 
-  if (record != NULL)
-    {
-      std::vector<int> cqiFeedback;
-      for (CqiIdealControlMessage::CqiFeedbacks::iterator it = cqi->begin (); it != cqi->end (); it++)
-        {
-	      cqiFeedback.push_back ((*it).m_cqi);
-        }
+  if (record != NULL) {
+    std::vector<int> cqiFeedback;
+    for (CqiIdealControlMessage::CqiFeedbacks::iterator it = cqi->begin();
+         it != cqi->end(); it++) {
+      cqiFeedback.push_back((*it).m_cqi);
+    }
 
 #ifdef TEST_CQI_FEEDBACKS
-      std::cout << "\t CQI: ";
-      for (int i = 0; i < cqiFeedback.size (); i++)
-        {
-	      std::cout << cqiFeedback.at (i) << " ";
-        }
-      std::cout << std::endl;
+    std::cout << "\t CQI: ";
+    for (int i = 0; i < cqiFeedback.size(); i++) {
+      std::cout << cqiFeedback.at(i) << " ";
+    }
+    std::cout << std::endl;
 #endif
 
 #ifdef AMC_MAPPING
-      std::cout << "\t CQI: ";
-      for (int i = 0; i < cqiFeedback.size (); i++)
-        {
-	      std::cout << cqiFeedback.at (i) << " ";
-        }
-      std::cout << std::endl;
+    std::cout << "\t CQI: ";
+    for (int i = 0; i < cqiFeedback.size(); i++) {
+      std::cout << cqiFeedback.at(i) << " ";
+    }
+    std::cout << std::endl;
 
-      std::cout << "\t MCS: ";
-      for (int i = 0; i < cqiFeedback.size (); i++)
-        {
-	      std::cout << GetAmcModule ()->GetMCSFromCQI (cqiFeedback.at (i)) << " ";
-        }
-      std::cout << std::endl;
+    std::cout << "\t MCS: ";
+    for (int i = 0; i < cqiFeedback.size(); i++) {
+      std::cout << GetAmcModule()->GetMCSFromCQI(cqiFeedback.at(i)) << " ";
+    }
+    std::cout << std::endl;
 
-      std::cout << "\t TB: ";
-      for (int i = 0; i < cqiFeedback.size (); i++)
-        {
-	      std::cout << GetAmcModule ()->GetTBSizeFromMCS(
-	    		  GetAmcModule ()->GetMCSFromCQI (cqiFeedback.at (i))) << " ";
-        }
-      std::cout << std::endl;
+    std::cout << "\t TB: ";
+    for (int i = 0; i < cqiFeedback.size(); i++) {
+      std::cout << GetAmcModule()->GetTBSizeFromMCS(
+                       GetAmcModule()->GetMCSFromCQI(cqiFeedback.at(i)))
+                << " ";
+    }
+    std::cout << std::endl;
 #endif
 
+    record->SetCQI(cqiFeedback);
 
-      record->SetCQI (cqiFeedback);
+  } else {
+    std::cout << "ERROR: received cqi from unknow ue!" << std::endl;
+  }
 
-    }
-  else
-    {
-      std::cout << "ERROR: received cqi from unknow ue!"<< std::endl;
-    }
-
-  //delete msg;
+  // delete msg;
 }
 
-void
-EnbMacEntity::ReceiveCqiWithMuteIdealControlMessage(CqiWithMuteIdealControlMessage* msg)
-{
-  CqiWithMuteIdealControlMessage::CqiFeedbacks *cqi = msg->GetMessage ();
+void EnbMacEntity::ReceiveCqiWithMuteIdealControlMessage(
+    CqiWithMuteIdealControlMessage *msg) {
+  CqiWithMuteIdealControlMessage::CqiFeedbacks *cqi = msg->GetMessage();
 
-  UserEquipment* ue = (UserEquipment*) msg->GetSourceDevice ();
-  ENodeB* enb = (ENodeB*) GetDevice ();
-  ENodeB::UserEquipmentRecord* record = enb->GetUserEquipmentRecord (ue->GetIDNetworkNode ());
+  UserEquipment *ue = (UserEquipment *)msg->GetSourceDevice();
+  ENodeB *enb = (ENodeB *)GetDevice();
+  ENodeB::UserEquipmentRecord *record =
+      enb->GetUserEquipmentRecord(ue->GetIDNetworkNode());
 
   if (record != NULL) {
     std::vector<CqiReport> cqi_with_mute_feedback;
     std::vector<int> cqi_feedback;
     for (auto it = cqi->begin(); it != cqi->end(); it++) {
-      cqi_with_mute_feedback.emplace_back(
-        it->m_cqi, it->m_cqi_mute_one, it->m_cqi_mute_two,
-        it->m_cell_one, it->m_cell_two
-      );
+      cqi_with_mute_feedback.emplace_back(it->m_cqi, it->m_cqi_mute_one,
+                                          it->m_cqi_mute_two, it->m_cell_one,
+                                          it->m_cell_two);
       cqi_feedback.push_back(it->m_cqi);
     }
     record->SetCQIWithMute(cqi_with_mute_feedback);
     record->SetCQI(cqi_feedback);
     int ue_id = ue->GetIDNetworkNode();
     // write to a file named ue_id.log
-  }
-  else {
-    std::cout << "ERROR: received cqi from unknow ue!"<< std::endl;
+  } else {
+    std::cout << "ERROR: received cqi from unknow ue!" << std::endl;
   }
 }
 
-void
-EnbMacEntity::ReceiveRSRPIdealControlMessage(RSRPIdealControlMessage* msg)
-{
-  RSRPIdealControlMessage::RSRPFeedback *feedback = msg->GetMessage ();
+void EnbMacEntity::ReceiveRSRPIdealControlMessage(
+    RSRPIdealControlMessage *msg) {
+  RSRPIdealControlMessage::RSRPFeedback *feedback = msg->GetMessage();
 
-  UserEquipment* ue = (UserEquipment*) msg->GetSourceDevice ();
-  ENodeB* enb = (ENodeB*) GetDevice ();
-  ENodeB::UserEquipmentRecord* record =
-    enb->GetUserEquipmentRecord (ue->GetIDNetworkNode ());
-  RSRPReport report(
-    feedback->m_rx_power, feedback->m_rsrp_interference,
-    feedback->device_noise, feedback->serve_node);
+  UserEquipment *ue = (UserEquipment *)msg->GetSourceDevice();
+  ENodeB *enb = (ENodeB *)GetDevice();
+  ENodeB::UserEquipmentRecord *record =
+      enb->GetUserEquipmentRecord(ue->GetIDNetworkNode());
+  RSRPReport report(feedback->m_rx_power, feedback->m_rsrp_interference,
+                    feedback->device_noise, feedback->serve_node);
+
+  // Derive per-RB SINR from RSRP and interference/noise, then map to CQI
   std::vector<int> cqi_feedback(feedback->m_rx_power.size(), 0);
+  AMCModule *amc = GetAmcModule();
+  for (size_t i = 0; i < feedback->m_rx_power.size(); ++i) {
+    double interference_plus_noise_watt = report.noise_interfere_watt[i];
+    // Convert watt to dB scale and compute SINR in dB: SINR_dB = Prx_dB -
+    // (I + N) _dB
+    double sinr_db =
+        feedback->m_rx_power[i] - 10. * log10(interference_plus_noise_watt);
+    cqi_feedback[i] = amc->GetCQIFromSinr(sinr_db);
+  }
   if (record != NULL) {
     record->SetRSRP(report);
     record->SetCQI(cqi_feedback);
-  }
-  else {
-    std::cout << "ERROR: received rsrp from unknow ue!"<< std::endl;
+  } else {
+    std::cout << "ERROR: received rsrp from unknow ue!" << std::endl;
   }
 }
 
-void
-EnbMacEntity::SendPdcchMapIdealControlMessage  (PdcchMapIdealControlMessage* msg)
-{
-}
+void EnbMacEntity::SendPdcchMapIdealControlMessage(
+    PdcchMapIdealControlMessage *msg) {}
 
+void EnbMacEntity::ReceiveSchedulingRequestIdealControlMessage(
+    SchedulingRequestIdealControlMessage *msg) {
+  UserEquipment *ue = (UserEquipment *)msg->GetSourceDevice();
+  ENodeB *enb = (ENodeB *)GetDevice();
+  ENodeB::UserEquipmentRecord *record =
+      enb->GetUserEquipmentRecord(ue->GetIDNetworkNode());
 
-void
-EnbMacEntity::ReceiveSchedulingRequestIdealControlMessage (SchedulingRequestIdealControlMessage* msg)
-{
-  UserEquipment* ue = (UserEquipment*) msg->GetSourceDevice ();
-  ENodeB* enb = (ENodeB*) GetDevice ();
-  ENodeB::UserEquipmentRecord* record = enb->GetUserEquipmentRecord (ue->GetIDNetworkNode ());
+  int bufferStatusReport = msg->GetBufferStatusReport();
 
-  int bufferStatusReport = msg->GetBufferStatusReport ();
-
-  if (record != NULL)
-	{
-	  record->SetSchedulingRequest (bufferStatusReport);
-	}
-  else
-    {
-      std::cout << "ERROR: received cqi from unknow ue!"<< std::endl;
-    }
+  if (record != NULL) {
+    record->SetSchedulingRequest(bufferStatusReport);
+  } else {
+    std::cout << "ERROR: received cqi from unknow ue!" << std::endl;
+  }
 }

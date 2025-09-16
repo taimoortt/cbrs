@@ -37,11 +37,8 @@ static bool _RLC_TRACING_ = false;
 static bool _MAC_TRACING_ = false;
 static bool _PHY_TRACING_ = false;
 
-
 /* activate uplink */
 static bool UPLINK = true;
-
-
 
 /* tests */
 static bool _TEST_BLER_ = false;
@@ -69,7 +66,7 @@ static bool _channel_AWGN_ = false;
 //#define BLER_DEBUG
 //#define MOBILITY_DEBUG
 //#define MOBILITY_DEBUG_TAB
-#define HANDOVER_DEBUG
+// #define HANDOVER_DEBUG
 //#define TRANSMISSION_DEBUG
 //#define CHANNEL_REALIZATION_DEBUG
 //#define TEST_DEVICE_ON_CHANNEL
@@ -77,7 +74,7 @@ static bool _channel_AWGN_ = false;
 //#define TEST_ENQUEUE_PACKETS
 //#define TEST_PROPAGATION_LOSS_MODEL
 //#define INTERFERENCE_DEBUG
-//#define TEST_CQI_FEEDBACKS
+// #define TEST_CQI_FEEDBACKS
 #define SCHEDULER_DEBUG
 //#define AMC_MAPPING
 //#define PLOT_USER_POSITION
@@ -91,4 +88,3 @@ static bool _channel_AWGN_ = false;
 #define SET_CENTRAL_SCHEDULER
 
 #endif /* PARAMETERS_H_ */
-                           

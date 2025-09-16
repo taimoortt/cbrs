@@ -19,28 +19,25 @@
  * Author: Giuseppe Piro <g.piro@poliba.it>
  */
 
-
-
 #ifndef FRAMEMANAGER_H_
 #define FRAMEMANAGER_H_
 
-#include <iostream>
-#include "NetworkManager.h"
 #include "../core/eventScheduler/simulator.h"
 #include "../protocolStack/mac/packet-scheduler/downlink-packet-scheduler.h"
+#include "NetworkManager.h"
 #include "TDDConfiguration.h"
+#include <iostream>
 
-
- /*
-   * LTE Frame Structure:
-   *
-   *  ** Frame structure type 1 (FS1): FDD
-   *    ...
-   *  ** Frame structure type 2 (FS2): TDD
-   *    ...
-   */
+/*
+ * LTE Frame Structure:
+ *
+ *  ** Frame structure type 1 (FS1): FDD
+ *    ...
+ *  ** Frame structure type 2 (FS2): TDD
+ *    ...
+ */
 struct Allocation {
-  std::vector<FlowToSchedule*> cell_flow;
+  std::vector<FlowToSchedule *> cell_flow;
   double sum_metric;
   double sum_tbs;
   std::map<int, double> per_cell_metric_map;
@@ -53,106 +50,79 @@ struct Allocation {
 
 class FrameManager {
 public:
-	static const int RBG_SIZE = 8;
-	enum FrameStructure
-	  {
-		FRAME_STRUCTURE_FDD,
-		FRAME_STRUCTURE_TDD
-	  };
+  static const int RBG_SIZE = 8;
+  enum FrameStructure { FRAME_STRUCTURE_FDD, FRAME_STRUCTURE_TDD };
+
 private:
-	FrameStructure m_frameStructure;
+  FrameStructure m_frameStructure;
 
-	int m_TDDFrameConfiguration;
+  int m_TDDFrameConfiguration;
 
-	int m_nbFrames;
-	int m_nbSubframes;
-	unsigned long m_TTICounter;
+  int m_nbFrames;
+  int m_nbSubframes;
+  unsigned long m_TTICounter;
 
-	FrameManager();
-	static FrameManager *ptr;
+  FrameManager();
+  static FrameManager *ptr;
 
 public:
-	//FrameManager();
-	virtual ~FrameManager();
+  // FrameManager();
+  virtual ~FrameManager();
 
-	static FrameManager*
-	Init (void)
-	  {
-		if (ptr==NULL)
-	      {
-		    ptr = new FrameManager;
-	   	  }
-		return ptr;
-	  }
+  static FrameManager *Init(void) {
+    if (ptr == NULL) {
+      ptr = new FrameManager;
+    }
+    return ptr;
+  }
 
-	void
-	SetFrameStructure (FrameStructure frameStructure);
-	FrameStructure
-	GetFrameStructure (void) const;
+  void SetFrameStructure(FrameStructure frameStructure);
+  FrameStructure GetFrameStructure(void) const;
 
-	void
-	SetTDDFrameConfiguration (int configuration);
-	int
-	GetTDDFrameConfiguration (void) const;
+  void SetTDDFrameConfiguration(int configuration);
+  int GetTDDFrameConfiguration(void) const;
 
-	int
-	GetSubFrameType (int nbSubFrame);
+  int GetSubFrameType(int nbSubFrame);
 
-	void
-	UpdateNbFrames (void);
-	int
-	GetNbFrames (void) const;
-	void
-	UpdateNbSubframes (void);
-	void
-	ResetNbSubframes (void);
-	int
-	GetNbSubframes (void) const;
-	void
-	UpdateTTIcounter (void);
-	unsigned long
-	GetTTICounter (void) const;
+  void UpdateNbFrames(void);
+  int GetNbFrames(void) const;
+  void UpdateNbSubframes(void);
+  void ResetNbSubframes(void);
+  int GetNbSubframes(void) const;
+  void UpdateTTIcounter(void);
+  unsigned long GetTTICounter(void) const;
 
-	void
-	Start (void);
-	void
-	StartFrame (void);
-	void
-	StopFrame (void);
-	void
-	StartSubframe (void);
-	void
-	StopSubframe (void);
+  void Start(void);
+  void StartFrame(void);
+  void StopFrame(void);
+  void StartSubframe(void);
+  void StopSubframe(void);
 
-	NetworkManager* GetNetworkManager (void);
+  NetworkManager *GetNetworkManager(void);
 
-	void UpdateUserPosition(void);
-	void ResourceAllocation(void);
+  void UpdateUserPosition(void);
 
   void CentralResourceAllocation(void);
 
   void CentralDownlinkRBsAllocation(void);
-  void TuneWeightsAcrossCells(std::vector<DownlinkPacketScheduler*>&);
-  void ReassignUserToSlice(std::vector<DownlinkPacketScheduler*>&);
+  void TuneWeightsAcrossCells(std::vector<DownlinkPacketScheduler *> &);
+  void ReassignUserToSlice(std::vector<DownlinkPacketScheduler *> &);
 
-	void UpdateUserPriorityPerApp(std::vector<DownlinkPacketScheduler*>& schedulers, int priority);
-  	void UpdateUserPriorityPerUser(std::vector<DownlinkPacketScheduler*>& schedulers,
-  	int cell_id, int slice_id,int priority);
+  void
+  UpdateUserPriorityPerApp(std::vector<DownlinkPacketScheduler *> &schedulers,
+                           int priority);
+  void
+  UpdateUserPriorityPerUser(std::vector<DownlinkPacketScheduler *> &schedulers,
+                            int cell_id, int slice_id, int priority);
 
-  void CalcSliceServedQuota(std::vector<DownlinkPacketScheduler*>&);
+  void CalcSliceServedQuota(std::vector<DownlinkPacketScheduler *> &);
   void SliceServedAllocateOneRBExhaustMute(
-	  std::vector<DownlinkPacketScheduler*>& schedulers,
-	  int rb_id
-  );
+      std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id);
   void SliceServedAllocateOneRBHeuristicMute(
-	  std::vector<DownlinkPacketScheduler*>& schedulers,
-	  int rb_id
-  );
+      std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id);
 
   void RadioSaberAllocateOneRBMute(
-    std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id
-  );
+      std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id);
 
   /*
   This function updates the noise_interference_watt of all flows
@@ -161,72 +131,19 @@ public:
   @param mute_id: the index of the muted cell
   */
   void UpdateNoiseInterferenceWithMute(
-    std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id, int mute_id = -1
-  );
+      std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id,
+      int mute_id = -1);
 
-  Allocation DoAllocation (
-    std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id, int mute_id = -1, bool mute_cell = false,
-	std::map<int, int> slice_map = std::map<int, int>(),
-	std::vector<int> global_cells_muted = std::vector<int>(),
-	std::vector<FlowToSchedule*> prior_cell_flow = std::vector<FlowToSchedule*>()
-  );
+  Allocation
+  DoAllocation(std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id,
+               int mute_id = -1, bool mute_cell = false,
+               std::map<int, int> slice_map = std::map<int, int>(),
+               std::vector<int> global_cells_muted = std::vector<int>(),
+               std::vector<FlowToSchedule *> prior_cell_flow =
+                   std::vector<FlowToSchedule *>());
 
-  void SingleObjMutingExhaust(
-    std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id
-  );
-
-  void SingleObjMutingOneCell(
-    std::vector<DownlinkPacketScheduler*>& schedulers, 
-    int rb_id
-  );
-
-  void MultiObjMutingOld(
-    std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id
-  );
-
-  std::vector<int> MultiObjMuting(
-	std::vector<DownlinkPacketScheduler*>& schedulers,
-	int rb_id
-  );
-
-
-  std::map<int, double> MultiObjMutingExhaustiveRealloc(
-  std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id, std::map<int, double> per_slice_metric_map
-  );
-
-  std::map<int, double> DoExhaustiveAllocation(
-  std::vector<DownlinkPacketScheduler*>& schedulers,
-    int rb_id, std::map<int, int> per_cell_slice_map,
-    int aggressor_cell = -1, std::vector<int> benefitting_slices = std::vector<int>()
-  );
-  
-  std::vector<int> GetExhaustiveMuteOrder(
-  std::vector<DownlinkPacketScheduler*>& schedulers,
-	int rb_id);
-  
-  bool EvaluateTradeoff(
-	  DownlinkPacketScheduler* muted_cell,
-	  double cost_in_rbs, int slice_id, double gain_in_metric
-  );
-
-  /*
-  Deprecated function
-  This function calculates the utility metrics of those slices that benefit
-  from muting cell on the muted cell
-  @param muted_cell: the muted cell id
-  @param rbgs_deduction: key: id of those slices which benefit; value: rbgs quota deduction
-  @return: key: id of those slice; value: sum of utility metrics on the muted cell
-  */
-  std::map<int, double> GetMetricsOnMutedCell(
-	  DownlinkPacketScheduler* muted_cell,
-	  std::map<int, double>& rbgs_deduction,
-	  int rb_id
-  );
+  void AllocateRBs(std::vector<DownlinkPacketScheduler *> &schedulers,
+                   int rb_id);
 };
 
 #endif /* FRAMEMANAGER_H_ */
