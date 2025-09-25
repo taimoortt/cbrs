@@ -21,7 +21,6 @@
 
 
 #include "bandwidth-manager.h"
-#include <stdio.h>
 #include <iostream>
 
 #define UL_LOW_FREQUENCY_BAND_1 1920 	//MHz
@@ -294,6 +293,60 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset, int d
 		  m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
 		}
 	}
+}
+
+// New constructors allowing explicit RB counts irrespective of nominal bandwidth
+BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, int ulRbs, int dlRbs)
+{
+  m_ulBandwidth = ulBw;
+  m_dlBandwidth = dlBw;
+  m_ulOffsetBw = ulOffset;
+  m_dlOffsetBw = dlOffset;
+
+  m_operativeSubBand = 1;
+
+  m_dlSubChannels.clear();
+  m_ulSubChannels.clear();
+
+  // Fill exactly dlRbs starting from dlOffset
+  for (int i = dlOffset; i < dlOffset + dlRbs; i++)
+    {
+      m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+    }
+
+  // Fill exactly ulRbs starting from ulOffset
+  for (int i = ulOffset; i < ulOffset + ulRbs; i++)
+    {
+      m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+    }
+}
+
+BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, int ulRbs, int dlRbs, bool tddTrue)
+{
+  // In TDD both directions share spectrum; still expose separate vectors sized as requested
+  m_ulBandwidth = ulBw + dlBw;
+  m_dlBandwidth = dlBw + ulBw;
+  m_ulOffsetBw = ulOffset;
+  m_dlOffsetBw = dlOffset;
+
+  m_operativeSubBand = 1;
+
+  m_dlSubChannels.clear();
+  m_ulSubChannels.clear();
+
+  for (int i = dlOffset; i < dlOffset + dlRbs; i++)
+    {
+      double f = DL_LOW_FREQUENCY_BAND_1 + (i * 0.18);
+      m_dlSubChannels.push_back(f);
+      m_ulSubChannels.push_back(f);
+    }
+
+  for (int i = ulOffset; i < ulOffset + ulRbs; i++)
+    {
+      double f = UL_LOW_FREQUENCY_BAND_1 + (i * 0.18);
+      m_ulSubChannels.push_back(f);
+      m_dlSubChannels.push_back(f);
+    }
 }
 
 

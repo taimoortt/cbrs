@@ -71,13 +71,14 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
                       int frame_struct, int speed, double maxDelay,
                       int videoBitRate, std::string config_fname, int num_macro,
                       int num_micro, int inter_micro_distance, double _duration,
-                      int _bandwidth, int seed) {
+                      double _bandwidth, bool _reuse, int seed) {
   // define simulation times
   double duration = _duration;
   double flow_duration = _duration;
-  int cluster = 1;
-  double bandwidth = 20;
+  bool reuse = _reuse;
+  double bandwidth = _bandwidth;
   cout << "Duration: " << duration << endl;
+  cout << "Bandwidth: " << bandwidth << " MHz" << endl;
 
   // CREATE COMPONENT MANAGER
   Simulator *simulator = Simulator::Init();
@@ -275,11 +276,11 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
 #endif
 
   // std::vector <BandwidthManager*> spectrum_macro =
-  // RunFrequencyReuseTechniques (num_macro, cluster, 50); std::vector
+  // RunFrequencyReuseTechniques (num_macro, reuse, 50); std::vector
   // <BandwidthManager*> spectrum_micro = RunFrequencyReuseTechniques
-  // (num_micro, cluster, 50, 252);
+  // (num_micro, reuse, 50, 252);
   std::vector<BandwidthManager *> spectrums =
-      RunFrequencyReuseTechniques(nbCell, cluster, bandwidth);
+      RunFrequencyReuseTechniques(nbCell, reuse, bandwidth);
 
   // Create a set of a couple of channels
   std::vector<LteChannel *> *dlChannels = new std::vector<LteChannel *>;
@@ -354,7 +355,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
 #endif
 #ifdef HOTSPOT_DEPLOYMENT
     vector<CartesianCoordinates *> *positions =
-        GetHotspotUsersDistribution(total_ues);
+        GetInterferenceLimitedUsersDistribution(total_ues);
     // Get User Mobility Patterns
     const Json::Value &mobility_speed = obj["mobility_speed"];
     const Json::Value &mobility_distribution = obj["mobility_distribution"];

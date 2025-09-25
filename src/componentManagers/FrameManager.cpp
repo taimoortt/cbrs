@@ -324,6 +324,12 @@ void FrameManager::AllocateRBs(
     RadioSaberDownlinkScheduler *scheduler =
         (RadioSaberDownlinkScheduler *)schedulers[j];
     FlowToSchedule *flow = global_cell_flow[j];
+    
+    // Skip allocation if no flow is available for this scheduler
+    if (flow == nullptr) {
+      continue;
+    }
+    
     auto &rsrp_report = flow->GetRSRPReport();
     scheduler->slice_rbgs_quota_[flow->GetSliceID()] -= 1;
     for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {

@@ -35,6 +35,9 @@ public:
 	BandwidthManager();
 	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset);
 	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, bool tddTrue);
+	// New constructors allowing explicit RB counts for UL/DL (independent of nominal bandwidth)
+	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, int ulRbs, int dlRbs);
+	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, int ulRbs, int dlRbs, bool tddTrue);
 	virtual ~BandwidthManager();
 
 	void SetDlSubChannels (std::vector<double> s);

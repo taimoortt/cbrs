@@ -19,250 +19,194 @@
  * Author: Giuseppe Piro <g.piro@poliba.it>
  */
 
-
 #ifndef FREQUENCY_REUSE_HELPER_H_
 #define FREQUENCY_REUSE_HELPER_H_
 
-#include <stdint.h>
+#include "../componentManagers/FrameManager.h"
+#include "../core/spectrum/bandwidth-manager.h"
 #include "stdlib.h"
 #include <math.h>
-#include "../core/spectrum/bandwidth-manager.h"
-#include "../componentManagers/FrameManager.h"
+#include <stdint.h>
 
 /*
 
-Number of supported non-overlapping channels in each frequency band and bandwidth.
+Number of supported non-overlapping channels in each frequency band and
+bandwidth.
 
 operative band		bandwidth 			Channel bandwidth (MHz)
-										1.4 3 	5 	10 	15 	20
+                                                                                1.4 3 	5 	10 	15 	20
 
-1 						60 				— 	— 	12 	6 	4 	3
-2 						60 				42 	20 	12 	6	[4] [3]
-3 						75 				53 	23 	15 	7 	[5] [3]
+1 						60
+— 	— 	12 	6 	4 	3 2
+60 				42 	20 	12 	6	[4] [3] 3
+75 				53 	23 	15 	7 	[5] [3]
 ...
 
 XXX: now is supported only the 1-th operative sub-band
 */
 
-static std::vector <BandwidthManager*>
-RunFrequencyReuseTechniques(int nodes, int cluster, double bandwidth, int default_offset = 0)
-{
-  std::vector <BandwidthManager*> spectrum;
+static std::vector<BandwidthManager *>
+RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
+                            int default_offset = 0) {
+  std::vector<BandwidthManager *> spectrum;
 
-  if (FrameManager::Init ()->GetFrameStructure () == FrameManager::FRAME_STRUCTURE_FDD)
-    {
+  if (FrameManager::Init()->GetFrameStructure() ==
+      FrameManager::FRAME_STRUCTURE_FDD) {
+    // Calculate total RBs available for the given bandwidth
+    int totalRBs = 0;
+    double cellBandwidth = 0;
+    cout << "Bandwidth: " << bandwidth << " MHz" << std::endl;
 
-      if (bandwidth == 5)
-        {
-          if (cluster > 12)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 12;
-            }
+    if (bandwidth == 1.4) {
+      totalRBs = 6;
+    } else if (bandwidth == 3) {
+      totalRBs = 15;
+    } else if (bandwidth == 5) {
+      totalRBs = 25;
+    } else if (bandwidth == 10) {
+      totalRBs = 50;
+    } else if (bandwidth == 15) {
+      totalRBs = 75;
+    } else if (bandwidth == 20) {
+      totalRBs = 100;
+    } else if (bandwidth == 50) {
+      totalRBs = 248;
+    } else if (bandwidth == 100) {
+      totalRBs = 496;
+    } else {
+      // Default to 5MHz
+      totalRBs = 25;
+      bandwidth = 5;
+    }
 
-          int operatibeSubBands = 25;
-          int counter = 0;
+    // Calculate RBs per cell and handle remainder
+    int rbsPerCell = 0;
+    int remainderRBs = 0;
+    if (reuse) {
+      // Full reuse: every cell uses the entire RB set
+      rbsPerCell = totalRBs;
+      remainderRBs = 0;
+    } else {
+      // Static partitioning: divide equally and spread remainders
+      rbsPerCell = totalRBs / nodes;
+      remainderRBs = totalRBs % nodes;
+    }
 
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
+    std::cout << "Total RBs: " << totalRBs << ", Nodes: " << nodes
+              << ", RBs per cell: " << rbsPerCell
+              << ", Remainder: " << remainderRBs << std::endl;
 
-         	  BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset);
-       	      spectrum.push_back (s);
+    int currentOffset = default_offset;
+    for (int i = 0; i < nodes; i++) {
+      int cellRBs = rbsPerCell;
 
-         	  counter++;
-    	      if (counter == cluster) counter = 0;
-            }
+      int cellOffset = currentOffset;
+      if (!reuse) {
+        // Give remainder RBs to the last cell(s). You could also choose the
+        // first ones.
+        if (i >= nodes - remainderRBs) {
+          cellRBs++;
         }
-
-      else if (bandwidth == 10)
-        {
-          if (cluster > 6)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 6;
-            }
-
-          int operatibeSubBands = 50;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
-
-    	      BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset);
-    	      spectrum.push_back (s);
-
-    	      counter++;
-    	      if (counter == cluster) counter = 0;
-            }
-        }
-
-      else if (bandwidth == 15)
-        {
-          if (cluster > 4)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 4;
-            }
-
-          int operatibeSubBands = 75;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
-
-    	      BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset);
-      	      spectrum.push_back (s);
-
-    	      counter++;
-    	      if (counter == cluster) counter = 0;
-            }
-        }
-
-      else if (bandwidth == 20)
-        {
-          if (cluster > 3)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 3;
-            }
-
-          int operatibeSubBands = 100;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-          {
-    	      // int offset = counter * operatibeSubBands;
-            int offset = 0;
-       	    BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset);
-    	      spectrum.push_back (s);
-
-       	      counter++;
-    	      if (counter == cluster) counter = 0;
-          }
-        }
-      
-      else if (bandwidth == 50){
-        for (int i = 0; i < nodes; i++) {
-          if (default_offset == 0 ){
-            int offset = 0;
-            BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset);
-            spectrum.push_back (s);
-          } else {
-            BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, default_offset, default_offset);
-            spectrum.push_back (s);
-          }
-        }
+      } else {
+        // Reuse: all cells share the same RBs and offset
+        cellOffset = default_offset;
       }
 
-      else if (bandwidth == 100) {
-        for (int i = 0; i < nodes; i++) {
-          int offset = 0;
-       	  BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset);
-    	    spectrum.push_back (s);
-        }
+      std::cout << "Cell " << i << ": RBs=" << cellRBs
+                << ", Offset=" << cellOffset << (reuse ? " (reuse)" : "")
+                << std::endl;
+
+      // Use explicit RB-count constructor so the subchannel list length matches
+      // cellRBs
+      BandwidthManager *s = new BandwidthManager(
+          bandwidth, bandwidth, cellOffset, cellOffset, cellRBs, cellRBs);
+      spectrum.push_back(s);
+
+      // Advance offset only when statically partitioning
+      if (!reuse) {
+        currentOffset += cellRBs;
       }
     }
-  else //case TDD
-    {
-      if (bandwidth == 5)
-        {
-          if (cluster > 12)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 12;
-            }
+  } else // case TDD
+  {
+    // Calculate total RBs available for the given bandwidth
+    int totalRBs = 0;
+    double cellBandwidth = 0;
 
-          int operatibeSubBands = 25;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
-
-         	  BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset, true);
-       	      spectrum.push_back (s);
-
-         	  counter++;
-    	      if (counter == cluster) counter = 0;
-            }
-        }
-
-      else if (bandwidth == 10)
-        {
-          if (cluster > 6)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 6;
-            }
-
-          int operatibeSubBands = 50;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
-
-    	      BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset, true);
-    	      spectrum.push_back (s);
-
-    	      counter++;
-    	      if (counter == cluster) counter = 0;
-            }
-        }
-
-      else if (bandwidth == 15)
-        {
-          if (cluster > 4)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 4;
-            }
-
-          int operatibeSubBands = 75;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
-
-    	      BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset, true);
-      	      spectrum.push_back (s);
-
-    	      counter++;
-    	      if (counter == cluster) counter = 0;
-            }
-        }
-
-      else if (bandwidth == 20)
-        {
-          if (cluster > 3)
-            {
-    	      std::cout << "ERROR: INVALID VALUES OF BANDWIDTH -> CLUSTER"<< std::endl;
-    	      cluster = 3;
-            }
-
-          int operatibeSubBands = 100;
-          int counter = 0;
-
-          for (int i = 0; i < nodes; i++)
-            {
-    	      int offset = counter * operatibeSubBands;
-
-       	      BandwidthManager *s = new BandwidthManager (bandwidth, bandwidth, offset, offset, true);
-    	      spectrum.push_back (s);
-
-       	      counter++;
-    	      if (counter == cluster) counter = 0;
-            }
-        }
+    if (bandwidth == 1.4) {
+      totalRBs = 6;
+    } else if (bandwidth == 3) {
+      totalRBs = 15;
+    } else if (bandwidth == 5) {
+      totalRBs = 25;
+    } else if (bandwidth == 10) {
+      totalRBs = 50;
+    } else if (bandwidth == 15) {
+      totalRBs = 75;
+    } else if (bandwidth == 20) {
+      totalRBs = 100;
+    } else if (bandwidth == 50) {
+      totalRBs = 248;
+    } else if (bandwidth == 100) {
+      totalRBs = 496;
+    } else {
+      // Default to 5MHz
+      totalRBs = 25;
+      bandwidth = 5;
     }
+
+    // Calculate RBs per cell and handle remainder
+    int rbsPerCell = 0;
+    int remainderRBs = 0;
+    if (reuse) {
+      // Full reuse
+      rbsPerCell = totalRBs;
+      remainderRBs = 0;
+    } else {
+      rbsPerCell = totalRBs / nodes;
+      remainderRBs = totalRBs % nodes;
+    }
+
+    std::cout << "TDD - Total RBs: " << totalRBs << ", Nodes: " << nodes
+              << ", RBs per cell: " << rbsPerCell
+              << ", Remainder: " << remainderRBs << std::endl;
+
+    int currentOffset = default_offset;
+    for (int i = 0; i < nodes; i++) {
+      int cellRBs = rbsPerCell;
+
+      int cellOffset = currentOffset;
+      if (!reuse) {
+        if (i >= nodes - remainderRBs) {
+          cellRBs++;
+        }
+      } else {
+        cellOffset = default_offset;
+      }
+
+      std::cout << "TDD Cell " << i << ": RBs=" << cellRBs
+                << ", Offset=" << cellOffset << (reuse ? " (reuse)" : "")
+                << std::endl;
+
+      BandwidthManager *s = new BandwidthManager(
+          bandwidth, bandwidth, cellOffset, cellOffset, cellRBs, cellRBs, true);
+      spectrum.push_back(s);
+
+      if (!reuse) {
+        currentOffset += cellRBs;
+      }
+    }
+  }
 
   return spectrum;
 }
 
+static std::vector<BandwidthManager *>
+DivideResourcesFermi(int nodes, bool reuse, double bandwidth,
+                     int int_impacted_users) {}
 
+static std::vector<BandwidthManager *>
+DivideResourcesFcbrs(int nodes, bool reuse, double bandwidth,
+                     int int_impacted_users) {}
 
 #endif /* FREQUENCY_REUSE_HELPER_H_ */
