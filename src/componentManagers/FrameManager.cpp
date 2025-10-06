@@ -269,18 +269,20 @@ void FrameManager::CentralDownlinkRBsAllocation(void) {
       schedulers[j]->StopSchedule();
     return;
   }
-  // Assume that every eNB has same number of RBs
-  int nb_of_rbs = schedulers[0]
-                      ->GetMacEntity()
-                      ->GetDevice()
-                      ->GetPhy()
-                      ->GetBandwidthManager()
-                      ->GetDlSubChannels()
-                      .size();
-  int rb_id = 0;
-  while (rb_id < nb_of_rbs) { // Allocate in the form of PRBG of size 4
-    AllocateRBs(schedulers, rb_id);
-    rb_id += RBG_SIZE;
+  // Handle asymmetric RB allocation - each cell may have different number of RBs
+  for (size_t j = 0; j < schedulers.size(); j++) {
+    int nb_of_rbs = schedulers[j]
+                        ->GetMacEntity()
+                        ->GetDevice()
+                        ->GetPhy()
+                        ->GetBandwidthManager()
+                        ->GetDlSubChannels()
+                        .size();
+    int rb_id = 0;
+    while (rb_id < nb_of_rbs) { // Allocate in the form of PRBG of size 8
+      AllocateRBs(schedulers, rb_id, j);
+      rb_id += RBG_SIZE;
+    }
   }
   for (size_t j = 0; j < schedulers.size(); j++) {
     schedulers[j]->FinalizeScheduledFlows();
@@ -289,51 +291,50 @@ void FrameManager::CentralDownlinkRBsAllocation(void) {
 }
 
 void FrameManager::AllocateRBs(
-    std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id) {
-  AMCModule *amc = schedulers[0]->GetMacEntity()->GetAmcModule();
-  std::vector<FlowToSchedule *>
-      global_cell_flow; // WHich flow will be scheduled for this RB
-  for (int j = 0; j < (int)schedulers.size(); j++) {
-    RadioSaberDownlinkScheduler *scheduler =
-        (RadioSaberDownlinkScheduler *)schedulers[j];
-    FlowsToSchedule *flows = scheduler->GetFlowsToSchedule();
-    double max_metric = 0;
-    FlowToSchedule *max_flow = nullptr;
-    for (auto it = flows->begin(); it != flows->end(); it++) {
-      FlowToSchedule *flow = *it;
-      auto &rsrp_report = flow->GetRSRPReport();
-      // under the current muting assumption
-      double spectraleff_rbg = 0.0;
-      for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {
-        for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {
-          int cqi = flow->GetCqiFeedbacks().at(i);
-          double se = amc->GetEfficiencyFromCQI(cqi);
-          spectraleff_rbg += se;
-        }
-      }
-      double metric = scheduler->ComputeSchedulingMetric(
-          flow->GetBearer(), spectraleff_rbg, rb_id);
-      if (metric > max_metric) {
-        max_metric = metric;
-        max_flow = flow;
-      }
-    }
-    global_cell_flow.push_back(max_flow);
+    std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id, int cell_index) {
+  // Only allocate for the specific cell
+  if (cell_index >= (int)schedulers.size()) {
+    return;
   }
-  for (size_t j = 0; j < schedulers.size(); j++) {
-    RadioSaberDownlinkScheduler *scheduler =
-        (RadioSaberDownlinkScheduler *)schedulers[j];
-    FlowToSchedule *flow = global_cell_flow[j];
-    
-    // Skip allocation if no flow is available for this scheduler
-    if (flow == nullptr) {
-      continue;
-    }
-    
+  
+  RadioSaberDownlinkScheduler *scheduler =
+      (RadioSaberDownlinkScheduler *)schedulers[cell_index];
+  FlowsToSchedule *flows = scheduler->GetFlowsToSchedule();
+  
+  if (flows->size() == 0) {
+    return; // No flows to schedule for this cell
+  }
+  
+  AMCModule *amc = scheduler->GetMacEntity()->GetAmcModule();
+  double max_metric = 0;
+  FlowToSchedule *max_flow = nullptr;
+  
+  for (auto it = flows->begin(); it != flows->end(); it++) {
+    FlowToSchedule *flow = *it;
     auto &rsrp_report = flow->GetRSRPReport();
-    scheduler->slice_rbgs_quota_[flow->GetSliceID()] -= 1;
+    // under the current muting assumption
+    double spectraleff_rbg = 0.0;
     for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {
-      flow->GetListOfAllocatedRBs()->push_back(i);
+      int cqi = flow->GetCqiFeedbacks().at(i);
+      double se = amc->GetEfficiencyFromCQI(cqi);
+      spectraleff_rbg += se;
     }
+    double metric = scheduler->ComputeSchedulingMetric(
+        flow->GetBearer(), spectraleff_rbg, rb_id);
+    if (metric > max_metric) {
+      max_metric = metric;
+      max_flow = flow;
+    }
+  }
+  
+  // Skip allocation if no flow is available for this scheduler
+  if (max_flow == nullptr) {
+    return;
+  }
+  
+  auto &rsrp_report = max_flow->GetRSRPReport();
+  scheduler->slice_rbgs_quota_[max_flow->GetSliceID()] -= 1;
+  for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {
+    max_flow->GetListOfAllocatedRBs()->push_back(i);
   }
 }

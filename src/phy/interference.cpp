@@ -62,18 +62,18 @@ std::map<int, double> Interference::ComputeInterference(UserEquipment *ue) {
           log10(
               powerTx /
               node->GetPhy()->GetBandwidthManager()->GetDlSubChannels().size());
-      double nodeInterference_db =
+      double receivedPower_db =
           powerTXForSubBandwidth - 10 -
           ComputePathLossForInterference(node, ue); // in dB
-      double nodeInterference = pow(10, nodeInterference_db / 10);
+      double nodeRSRP = pow(10, receivedPower_db / 10);
 
-      rsrp[node->GetIDNetworkNode()] = nodeInterference;
+      rsrp[node->GetIDNetworkNode()] = nodeRSRP;
       if (node->GetIDNetworkNode() != ue->GetTargetNode()->GetIDNetworkNode()) {
-        tot_interference += (nodeInterference);
+        tot_interference += (nodeRSRP);
 #ifdef INTERFERENCE_DEBUG
 // std::cerr << tti << " UE(" << ue->GetIDNetworkNode() << ")"
 //   << " interference from eNB " << node->GetIDNetworkNode()
-//   << ": " << nodeInterference_db << " interfere(watt): " << nodeInterference
+//   << ": " << receivedPower_db << " interfere(watt): " << nodeRSRP
 //   << std::endl;
 #endif
       } else {
@@ -81,9 +81,10 @@ std::map<int, double> Interference::ComputeInterference(UserEquipment *ue) {
         std::cout
             << tti << " UE(" << ue->GetIDNetworkNode() << ")"
             << " RSRP from serving eNB " << node->GetIDNetworkNode() << ": "
-            << nodeInterference_db << " RSRP(watt): " << nodeInterference
+            << receivedPower_db << " RSRP(watt): " << nodeRSRP
             << " tx_power(db) " << powerTXForSubBandwidth << " path_loss(db) "
-            << ComputePathLossForInterference(node, ue) << " distance(m) "
+            << ComputePathLossForInterference(node, ue)
+            << " Total Interference: " << tot_interference << " distance(m) "
             << node->GetMobilityModel()->GetAbsolutePosition()->GetDistance(
                    ue->GetMobilityModel()->GetAbsolutePosition())
             << std::endl;

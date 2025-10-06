@@ -22,6 +22,8 @@
 #include "../channel/LteChannel.h"
 #include "../channel/propagation-model/macrocell-rural-area-channel-realization.h"
 #include "../channel/propagation-model/macrocell-urban-area-channel-realization.h"
+#include "../channel/propagation-model/propagation-loss-model.h"
+#include "../channel/propagation-model/channel-realization.h"
 #include "../componentManagers/FrameManager.h"
 #include "../core/eventScheduler/simulator.h"
 #include "../core/spectrum/bandwidth-manager.h"
@@ -355,7 +357,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
 #endif
 #ifdef HOTSPOT_DEPLOYMENT
     vector<CartesianCoordinates *> *positions =
-        GetInterferenceLimitedUsersDistribution(total_ues);
+        GetInterferenceLimitedUsersDistribution(total_ues, seed);
     // Get User Mobility Patterns
     const Json::Value &mobility_speed = obj["mobility_speed"];
     const Json::Value &mobility_distribution = obj["mobility_distribution"];
@@ -446,8 +448,8 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
       } else {
         speedDirection = (double)(rand() % 360) * ((2 * 3.14) / 360);
       }
-      // int serve_cell = positions->at(i)->GetCellID();
-      int serve_cell = 0;
+      int serve_cell = positions->at(i)->GetCellID();
+      // int serve_cell = 0;
       speed = mobility_array[i];
       enum Mobility::MobilityModel mobility;
       if (speed == 0) {
@@ -461,7 +463,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
       UserEquipment *ue =
           new UserEquipment(idUE, posX, posY, speed, speedDirection,
                             cells->at(serve_cell), eNBs->at(serve_cell),
-                            1, // HO activated!
+                            0, // HO activated!
                             mobility);
       // Mobility::RANDOM_DIRECTION);
       cout << "Setting user " << i << " to mobility: " << speed << endl;
@@ -511,6 +513,63 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
       ue->UpdateUserPosition(start_time);
       idUE++;
     }
+
+    std::map<int, int> interference_impacted_users =
+        GetInterferenceLimitedUsersPerCell(ues, nm);
+    spectrums =
+        DivideResourcesFermi(nbCell, bandwidth, interference_impacted_users);
+
+    // assert that size of enbs is same as size of spectrums
+    assert(eNBs->size() == spectrums.size());
+    for (int i = 0; i < eNBs->size(); i++) {
+      eNBs->at(i)->GetPhy()->SetBandwidthManager(spectrums.at(i));
+      eNBs->at(i)->GetPhy()->GetBandwidthManager()->Print();
+    }
+
+    // CRITICAL: Update all channel realizations after bandwidth manager changes
+    // This prevents vector bounds violations in GetLoss() functions
+    for (int i = 0; i < eNBs->size(); i++) {
+      ENodeB *enb = eNBs->at(i);
+      
+      // Update DL channel realizations
+      LteChannel *dlChannel = enb->GetPhy()->GetDlChannel();
+      if (dlChannel->GetPropagationLossModel() != NULL) {
+        PropagationLossModel *propLossModel = dlChannel->GetPropagationLossModel();
+        
+        // Get all UEs attached to this eNB
+        std::vector<ENodeB::UserEquipmentRecord *> ue_records = *enb->GetUserEquipmentRecords();
+        for (auto ue_record : ue_records) {
+          UserEquipment *ue = ue_record->GetUE();
+          
+          // Force update of channel realization for this UE-eNB pair
+          ChannelRealization *channelRealization = propLossModel->GetChannelRealization(enb, ue);
+          if (channelRealization != NULL) {
+            // Force update by calling UpdateModels directly
+            channelRealization->UpdateModels();
+          }
+        }
+      }
+      
+      // Update UL channel realizations
+      LteChannel *ulChannel = enb->GetPhy()->GetUlChannel();
+      if (ulChannel->GetPropagationLossModel() != NULL) {
+        PropagationLossModel *propLossModel = ulChannel->GetPropagationLossModel();
+        
+        // Get all UEs attached to this eNB
+        std::vector<ENodeB::UserEquipmentRecord *> ue_records = *enb->GetUserEquipmentRecords();
+        for (auto ue_record : ue_records) {
+          UserEquipment *ue = ue_record->GetUE();
+          
+          // Force update of channel realization for this UE-eNB pair
+          ChannelRealization *channelRealization = propLossModel->GetChannelRealization(ue, enb);
+          if (channelRealization != NULL) {
+            // Force update by calling UpdateModels directly
+            channelRealization->UpdateModels();
+          }
+        }
+      }
+    }
+
     int slice_counter = 0;
     ENodeB *enb;
     int counter = 0;

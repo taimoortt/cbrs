@@ -202,11 +202,67 @@ RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
 }
 
 static std::vector<BandwidthManager *>
-DivideResourcesFermi(int nodes, bool reuse, double bandwidth,
-                     int int_impacted_users) {}
+DivideResourcesFermi(int nodes, double bandwidth,
+                     std::map<int, int> int_impacted_users) {
+  std::vector<BandwidthManager *> spectrum;
+  int totalRBs = 0;
+  double cellBandwidth = 0;
+  cout << "Bandwidth: " << bandwidth << " MHz" << std::endl;
+
+  if (bandwidth == 1.4) {
+    totalRBs = 6;
+  } else if (bandwidth == 3) {
+    totalRBs = 15;
+  } else if (bandwidth == 5) {
+    totalRBs = 25;
+  } else if (bandwidth == 10) {
+    totalRBs = 50;
+  } else if (bandwidth == 15) {
+    totalRBs = 75;
+  } else if (bandwidth == 20) {
+    totalRBs = 100;
+  } else if (bandwidth == 50) {
+    totalRBs = 248;
+  } else if (bandwidth == 100) {
+    totalRBs = 496;
+  } else {
+    // Default to 5MHz
+    totalRBs = 25;
+    bandwidth = 5;
+  }
+
+  int rbsPerCell = 0;
+  int remainderRBs = 0;
+  int currentOffset = 0;
+
+  // get total number of interference impacted users
+  int total_interference_limited_users = 0;
+  for ( const auto &pair : int_impacted_users) {
+    total_interference_limited_users += pair.second;
+  }   
+
+  cout << "Total Interference Impacted Users: " << total_interference_limited_users << endl;
+
+  for (int i = 0; i < nodes; i++) {
+    // distribute RBs in proportion to the number of interference impacted users
+    rbsPerCell = totalRBs * int_impacted_users[i] / total_interference_limited_users;
+    cout << "Cell " << i << ": RBs=" << rbsPerCell << endl;
+
+    BandwidthManager *s = new BandwidthManager(
+        bandwidth, bandwidth, currentOffset, currentOffset, rbsPerCell, rbsPerCell);
+    spectrum.push_back(s);
+    currentOffset += rbsPerCell;
+  }
+
+  return spectrum;
+}
 
 static std::vector<BandwidthManager *>
 DivideResourcesFcbrs(int nodes, bool reuse, double bandwidth,
+                     int int_impacted_users) {}
+
+static std::vector<BandwidthManager *>
+DivideResourcesIdeal(int nodes, bool reuse, double bandwidth,
                      int int_impacted_users) {}
 
 #endif /* FREQUENCY_REUSE_HELPER_H_ */

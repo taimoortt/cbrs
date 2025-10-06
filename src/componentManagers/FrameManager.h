@@ -50,7 +50,7 @@ struct Allocation {
 
 class FrameManager {
 public:
-  static const int RBG_SIZE = 8;
+  static const int RBG_SIZE = 1;
   enum FrameStructure { FRAME_STRUCTURE_FDD, FRAME_STRUCTURE_TDD };
 
 private:
@@ -143,7 +143,7 @@ public:
                    std::vector<FlowToSchedule *>());
 
   void AllocateRBs(std::vector<DownlinkPacketScheduler *> &schedulers,
-                   int rb_id);
+                   int rb_id, int cell_index);
 };
 
 #endif /* FRAMEMANAGER_H_ */
