@@ -219,7 +219,7 @@ GetInterferenceLimitedUsersDistribution(int nbUE, int seed = 0) {
       vectorOfCoordinates->push_back(newCoordinates);
     } else {
       double x_cd = 0;
-      double y_cd = 370;
+      double y_cd = 500;
       x_cd += dist_70(rng); // Use seeded random instead of rand() % 70
       CartesianCoordinates *newCoordinates =
           new CartesianCoordinates(x_cd, y_cd);
@@ -233,7 +233,7 @@ GetInterferenceLimitedUsersDistribution(int nbUE, int seed = 0) {
     if (i == nbUE / 3) {
       cout << "Here" << endl;
       double x_cd = 0;
-      double y_cd = 390;
+      double y_cd = 520;
       x_cd += dist_70(rng); // Use seeded random instead of rand() % 70
       CartesianCoordinates *newCoordinates =
           new CartesianCoordinates(x_cd, y_cd);
@@ -253,38 +253,39 @@ GetInterferenceLimitedUsersDistribution(int nbUE, int seed = 0) {
   return vectorOfCoordinates;
 }
 
-static std::map<int, int>
-GetInterferenceLimitedUsersPerCell(std::vector<UserEquipment *> ues,
-                                   NetworkManager *nm) {
+static std::map<int, int> GetInterferenceLimitedUsersPerCell(
+    vector<CartesianCoordinates *> &ue_coordinates, NetworkManager *nm) {
   // iterate over all the ues. Get the cell that they are associated to and get
   // their distance from the cell. Then get their distance from all of the
   // niighboring cells. If the distance to the neighboring cell is is the same
   // or less than the distance to the associated cell, then add the ue to the
   // list of ues which are interference impacted.
   std::map<int, int> interference_limited_ues_per_cell;
-  for (auto ue : ues) {
-    Cell *cell = ue->GetCell();
-    const Mobility *mobility_model = ue->GetMobilityModel();
-    CartesianCoordinates *ue_position = mobility_model->GetAbsolutePosition();
+  int counter = 0;
+  for (auto ue : ue_coordinates) {
+    // Cell *cell = ue->GetCell();
+    Cell *cell = nm->GetCellByID(ue->GetCellID());
+    CartesianCoordinates *ue_position = ue;
     double ue_distance_from_primary_cell =
         ue_position->GetDistance(cell->GetCellCenterPosition());
     std::vector<Cell *> Cells = *nm->GetCellContainer();
-
     for (auto neighboring_cell : Cells) {
       if (neighboring_cell->GetIdCell() == cell->GetIdCell()) {
         continue;
       }
       double ue_distance_to_neighboring_cell =
           ue_position->GetDistance(neighboring_cell->GetCellCenterPosition());
-      cout << "UE: " << ue->GetIDNetworkNode()
-           << " is interference impacted in Cell: " << cell->GetIdCell()
+      cout << "UE: " << counter
            << " Distance from Primary Cell: " << ue_distance_from_primary_cell
            << " Distance from Neighboring Cell : "
            << ue_distance_to_neighboring_cell << endl;
       if (ue_distance_to_neighboring_cell <=
           ue_distance_from_primary_cell + 80) {
+        cout << "Interference Impacted: UE " << counter << " in Cell "
+             << cell->GetIdCell() << endl;
         interference_limited_ues_per_cell[cell->GetIdCell()]++;
       }
+      counter++;
     }
   }
   // print the map
@@ -295,6 +296,19 @@ GetInterferenceLimitedUsersPerCell(std::vector<UserEquipment *> ues,
   }
   return interference_limited_ues_per_cell;
 }
+
+static std::map<int, int> GetUEsPerCell(
+    vector<CartesianCoordinates *> &ue_coordinates, NetworkManager *nm) {
+  std::map<int, int> ues_per_cell;
+  
+  for (auto ue : ue_coordinates) {
+    int cell_id = ue->GetCellID();
+    ues_per_cell[cell_id]++;
+  }
+  
+  return ues_per_cell;
+}
+
 
 static vector<CartesianCoordinates *> *
 GetUniformUsersDistributionInFemtoCell(int idCell, int nbUE) {

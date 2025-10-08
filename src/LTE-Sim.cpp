@@ -143,15 +143,14 @@ int main(int argc, char *argv[]) {
       int inter_micro_distance = atoi(argv[17]);
       double duration = stod(argv[18]);
       double bandwidth = stod(argv[19]);
-      bool reuse = atoi(argv[20]);
+      int reuse_policy = atoi(argv[20]);
       int seed = -1;
-      cout << "in Lte-sim main: " << bandwidth << endl;
       if (argc == 21)
-        seed = atoi(argv[20]);
+        seed = atoi(argv[21]);
       MultiCell(nbCells, radius, nbUE, nbVoIP, nbVideo, nbBE, nbCBR, sched_type,
                 frame_struct, speed, maxDelay, video_bit_rate, config_fname,
                 num_macro, num_micro, inter_micro_distance, duration, bandwidth,
-                reuse, seed);
+                reuse_policy, seed);
     }
 
     if (strcmp(argv[1], "SingleCellWithFemto") == 0) {

@@ -123,7 +123,7 @@ static CartesianCoordinates GetCartesianCoordinatesForCell(int idCell,
 
   case 1:
     x = 0;
-    y = radius * 0.8;
+    y = radius * 1;
     break;
 
   case 2:
