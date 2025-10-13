@@ -231,11 +231,39 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
   }
 }
 
+std::vector<double>
+BandwidthManager::GetSharedDlChannels(int index, int num_shared_channels) {
+  std::vector<double> shared;
+  for (int i = index; i < num_shared_channels; i++) {
+    shared.push_back(m_dlSubChannels.at(i));
+  }
+  return shared;
+}
+
+void BandwidthManager::AddSharedChannels(std::vector<double> shared_dlChannels,
+                                         std::vector<double> shared_ulChannels,
+                                         BandwidthManager &s) {
+  // Add DL shared channels if not already present
+  for (int i = 0; i < shared_dlChannels.size(); i++) {
+    double f = shared_dlChannels.at(i);
+    bool found = false;
+    for (int j = 0; j < m_dlSubChannels.size(); j++) {
+      if (m_dlSubChannels.at(j) == f) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      m_dlSubChannels.push_back(f);
+    }
+  }
+}
+
 BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
                                    int dlOffset, int ulRbs, int dlRbs,
                                    bool tddTrue) {
-  // In TDD both directions share spectrum; still expose separate vectors sized
-  // as requested
+  // In TDD both directions share spectrum; still expose separate vectors
+  // sized as requested
   m_ulBandwidth = ulBw + dlBw;
   m_dlBandwidth = dlBw + ulBw;
   m_ulOffsetBw = ulOffset;

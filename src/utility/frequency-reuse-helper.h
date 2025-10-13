@@ -25,9 +25,10 @@
 #include "../componentManagers/FrameManager.h"
 #include "../core/spectrum/bandwidth-manager.h"
 #include "stdlib.h"
+#include <algorithm>
+#include <iomanip>
 #include <math.h>
 #include <stdint.h>
-#include <iomanip>
 
 /*
 
@@ -325,90 +326,171 @@ DivideResourcesIdeal(int nodes, double bandwidth,
   cout << "Total RBs: " << totalRBs << endl;
   cout << "Ideal Resource Allocation - Interference-Aware Strategy" << endl;
 
-  // Step 1: Calculate static partition share (equal division)
-  int staticRBsPerCell = totalRBs / nodes;
-  int remainderRBs = totalRBs % nodes;
+  // --- replace from "Step 1: Calculate static partition share ..." down to
+  // spectrum.push_back(s); ---
 
-  // Step 2: Calculate interference fractions and allocate resources
-  std::vector<int> isolatedRBs(nodes, 0);  // RBs isolated for each cell
-  std::vector<int> reuseRBs(nodes, 0);     // RBs available for reuse for each cell
+  // Step 1: base contiguous blocks per cell (handle remainder cleanly)
+  std::vector<int> blockStart(nodes, 0), blockEnd(nodes, 0),
+      blockSize(nodes, 0);
+  int base = totalRBs / nodes;
+  int rem = totalRBs % nodes;
+
+  int cursor = 0;
+  for (int i = 0; i < nodes; ++i) {
+    blockSize[i] = base + (i < rem ? 1 : 0);
+    blockStart[i] = cursor;
+    blockEnd[i] = cursor + blockSize[i]; // exclusive
+    cursor = blockEnd[i];
+  }
+
+  // Step 2: per-cell isolated/reuse counts (bounded by each cell’s block size)
+  std::vector<int> isolatedRBs(nodes, 0), reuseRBs(nodes, 0);
   int totalIsolatedRBs = 0;
 
-  for (int i = 0; i < nodes; i++) {
-    int totalUsers = (total_users_per_cell.find(i) != total_users_per_cell.end()) 
-                     ? total_users_per_cell[i] : 0;
-    int interferenceUsers = (int_impacted_users.find(i) != int_impacted_users.end()) 
-                            ? int_impacted_users[i] : 0;
+  for (int i = 0; i < nodes; ++i) {
+    int totalUsers =
+        (total_users_per_cell.count(i) ? total_users_per_cell[i] : 0);
+    int interferenceUsers =
+        (int_impacted_users.count(i) ? int_impacted_users[i] : 0);
 
-    // Calculate interference fraction
-    double interferenceFraction = 0.0;
-    if (totalUsers > 0) {
-      interferenceFraction = (double)interferenceUsers / totalUsers;
-    }
+    double frac =
+        (totalUsers > 0) ? double(interferenceUsers) / totalUsers : 0.0;
 
-    // Allocate isolated RBs based on interference fraction
-    isolatedRBs[i] = (int)(staticRBsPerCell * interferenceFraction);
-    
-    // The remainder can be used for reuse
-    reuseRBs[i] = staticRBsPerCell - isolatedRBs[i];
-    
-    totalIsolatedRBs += isolatedRBs[i];
+    // cap isolated to the block size to be safe
+    int iso = (int)std::round(frac * blockSize[i]);
+    iso = std::max(0, std::min(iso, blockSize[i]));
+    int rsz = blockSize[i] - iso;
 
-    cout << "Cell " << i << ": Total Users=" << totalUsers 
+    isolatedRBs[i] = iso;
+    reuseRBs[i] = rsz;
+    totalIsolatedRBs += iso;
+
+    cout << "Cell " << i << ": Total Users=" << totalUsers
          << ", Interference Users=" << interferenceUsers
-         << ", Interference Fraction=" << std::fixed << std::setprecision(2) 
-         << interferenceFraction * 100 << "%"
-         << ", Isolated RBs=" << isolatedRBs[i]
-         << ", Reuse RBs=" << reuseRBs[i] << endl;
+         << ", Interference Fraction=" << std::fixed << std::setprecision(2)
+         << frac * 100 << "%"
+         << ", Block=[" << blockStart[i] << "-" << (blockEnd[i] - 1) << "]"
+         << ", Isolated RBs=" << iso << ", Reuse RBs=" << rsz << endl;
   }
 
-  // Handle remainder RBs - distribute them to cells with highest interference
-  for (int i = 0; i < remainderRBs; i++) {
-    // Find cell with highest interference fraction
-    int maxInterferenceCell = 0;
-    double maxFraction = 0.0;
-    for (int j = 0; j < nodes; j++) {
-      int totalUsers = (total_users_per_cell.find(j) != total_users_per_cell.end()) 
-                       ? total_users_per_cell[j] : 0;
-      int interferenceUsers = (int_impacted_users.find(j) != int_impacted_users.end()) 
-                              ? int_impacted_users[j] : 0;
-      double fraction = (totalUsers > 0) ? (double)interferenceUsers / totalUsers : 0.0;
-      if (fraction > maxFraction) {
-        maxFraction = fraction;
-        maxInterferenceCell = j;
-      }
-    }
-    isolatedRBs[maxInterferenceCell]++;
-    totalIsolatedRBs++;
-  }
-
-  // Step 3: Calculate total reuse RBs available
   int totalReuseRBs = totalRBs - totalIsolatedRBs;
   cout << "Total Isolated RBs: " << totalIsolatedRBs << endl;
   cout << "Total Reuse RBs: " << totalReuseRBs << endl;
 
-  // Step 4: Create BandwidthManager objects
-  int currentOffset = 0;
-  for (int i = 0; i < nodes; i++) {
-    // Each cell gets its isolated RBs plus access to all reuse RBs
-    int cellTotalRBs = isolatedRBs[i] + totalReuseRBs;
-    
-    cout << "Cell " << i << " Final Allocation: " 
-         << isolatedRBs[i] << " isolated + " << totalReuseRBs 
-         << " reuse = " << cellTotalRBs << " total RBs" << endl;
+  // Step 3: place isolated & reuse ranges to maximize shared contiguity
+  // Policy:
+  // - If nodes == 2: cell0 isolated at low end; cell1 isolated at high end.
+  //   => shared spans the boundary contiguously.
+  // - Else (n>2): we still prioritize boundary sharing between neighbors by
+  //   alternating sides (even: isolated low, odd: isolated high). This makes
+  //   ~every other boundary shared and keeps big contiguous shared chunks.
+  std::vector<int> isoStart(nodes, 0), isoEnd(nodes, 0);
+  std::vector<std::pair<int, int>> reuseRanges(nodes); // [start, end) per cell
 
-    // Create BandwidthManager with isolated RBs starting at currentOffset
-    // and reuse RBs starting at the end of isolated allocations
-    BandwidthManager *s = new BandwidthManager(
-        bandwidth, bandwidth, currentOffset, currentOffset, 
-        isolatedRBs[i], isolatedRBs[i]);
-    spectrum.push_back(s);
+  for (int i = 0; i < nodes; ++i) {
+    bool isoLow = false;
+    if (nodes == 2) {
+      isoLow = (i == 0); // cell0: isolated low, cell1: isolated high
+    } else {
+      isoLow = (i % 2 == 0); // alternate for n>2
+    }
 
-    // Update offset for next cell's isolated resources
-    currentOffset += isolatedRBs[i];
+    if (isolatedRBs[i] == 0) {
+      // no isolated, all reuse
+      isoStart[i] = isoEnd[i] = blockStart[i];
+      reuseRanges[i] = {blockStart[i], blockEnd[i]};
+    } else if (reuseRBs[i] == 0) {
+      // fully isolated (degenerate)
+      if (isoLow) {
+        isoStart[i] = blockStart[i];
+        isoEnd[i] = blockEnd[i];
+      } else {
+        isoStart[i] = blockStart[i];
+        isoEnd[i] = blockEnd[i];
+      }
+      reuseRanges[i] = {blockStart[i], blockStart[i]}; // empty
+    } else if (isoLow) {
+      // isolated at low end, reuse at high end
+      isoStart[i] = blockStart[i];
+      isoEnd[i] = blockStart[i] + isolatedRBs[i];
+      reuseRanges[i] = {isoEnd[i], blockEnd[i]};
+    } else {
+      // isolated at high end, reuse at low end
+      isoStart[i] = blockEnd[i] - isolatedRBs[i];
+      isoEnd[i] = blockEnd[i];
+      reuseRanges[i] = {blockStart[i], isoStart[i]};
+    }
+
+    if (isolatedRBs[i] > 0) {
+      cout << "Cell " << i << " Layout: Isolated [" << isoStart[i] << "-"
+           << (isoEnd[i] - 1) << "], Reuse [" << reuseRanges[i].first << "-"
+           << (reuseRanges[i].second - 1) << "]\n";
+    } else {
+      cout << "Cell " << i << " Layout: No isolated, Reuse ["
+           << reuseRanges[i].first << "-" << (reuseRanges[i].second - 1)
+           << "]\n";
+    }
   }
 
-  cout << "Ideal allocation complete - " << nodes << " cells configured" << endl;
+  // Step 4: build the GLOBAL shared set as the union of all per-cell reuse
+  // ranges (for two cells this becomes one contiguous block across the
+  // boundary)
+  std::vector<std::pair<int, int>> sharedSegments =
+      reuseRanges; // merge overlaps
+  std::sort(sharedSegments.begin(), sharedSegments.end());
+  std::vector<std::pair<int, int>> merged;
+  for (auto seg : sharedSegments) {
+    if (seg.first >= seg.second)
+      continue;
+    if (merged.empty() || seg.first > merged.back().second) {
+      merged.push_back(seg);
+    } else {
+      merged.back().second = std::max(merged.back().second, seg.second);
+    }
+  }
+
+  // Optional: print the merged shared regions
+  int sharedTotal = 0;
+  for (auto &m : merged)
+    sharedTotal += (m.second - m.first);
+  cout << "Merged Shared Regions: ";
+  for (size_t k = 0; k < merged.size(); ++k) {
+    cout << "[" << merged[k].first << "-" << (merged[k].second - 1) << "]";
+    if (k + 1 < merged.size())
+      cout << ", ";
+  }
+  cout << " (Total " << sharedTotal << " RBs)\n";
+
+  // Step 5: materialize BandwidthManager objects
+  for (int i = 0; i < nodes; ++i) {
+    int isoCount = std::max(0, isoEnd[i] - isoStart[i]);
+
+    // Create BM preloaded with isolated window
+    BandwidthManager *s = new BandwidthManager(
+        bandwidth, bandwidth, /*dlOffsetBw*/ isoStart[i],
+        /*ulOffsetBw*/ isoStart[i], /*dlRBs*/ isoCount, /*ulRBs*/ isoCount);
+
+    // Build isolated channels
+    std::vector<double> dl = s->GetDlSubChannels();
+    std::vector<double> ul = s->GetUlSubChannels();
+
+    // Append GLOBAL shared channels (union of every cell’s reuse segments)
+    for (auto seg : merged) {
+      for (int rb = seg.first; rb < seg.second; ++rb) {
+        dl.push_back(2110.0 + rb * 0.18);
+        ul.push_back(1920.0 + rb * 0.18);
+      }
+    }
+
+    s->SetDlSubChannels(dl);
+    s->SetUlSubChannels(ul);
+    spectrum.push_back(s);
+
+    cout << "Cell " << i << " Final Allocation: " << isoCount << " isolated + "
+         << sharedTotal << " shared = " << (isoCount + sharedTotal)
+         << " total RBs\n";
+  }
+  // --- end replace ---
   return spectrum;
 }
 

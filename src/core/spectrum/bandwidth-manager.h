@@ -19,7 +19,6 @@
  * Author: Giuseppe Piro <g.piro@poliba.it>
  */
 
-
 #ifndef BandwidthManager_H_
 #define BandwidthManager_H_
 
@@ -32,50 +31,57 @@
  */
 class BandwidthManager {
 public:
-	BandwidthManager();
-	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset);
-	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, bool tddTrue);
-	// New constructors allowing explicit RB counts for UL/DL (independent of nominal bandwidth)
-	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, int ulRbs, int dlRbs);
-	BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset, int ulRbs, int dlRbs, bool tddTrue);
-	virtual ~BandwidthManager();
+  BandwidthManager();
+  BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset);
+  BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset,
+                   bool tddTrue);
+  // New constructors allowing explicit RB counts for UL/DL (independent of
+  // nominal bandwidth)
+  BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset,
+                   int ulRbs, int dlRbs);
+  BandwidthManager(double ulBw, double dlBw, int ulOffset, int dlOffset,
+                   int ulRbs, int dlRbs, bool tddTrue);
+  virtual ~BandwidthManager();
 
-	void SetDlSubChannels (std::vector<double> s);
-	std::vector<double> GetDlSubChannels (void);
+  void SetDlSubChannels(std::vector<double> s);
+  std::vector<double> GetDlSubChannels(void);
 
-	void SetUlSubChannels (std::vector<double> s);
-	std::vector<double> GetUlSubChannels (void);
+  void SetUlSubChannels(std::vector<double> s);
+  std::vector<double> GetUlSubChannels(void);
 
+  void SetOperativeSubBand(int s);
+  int GetOperativeSubBand(void);
 
-	void SetOperativeSubBand (int s);
-	int GetOperativeSubBand (void);
+  void SetUlBandwidth(double b);
+  void SetDlBandwidth(double b);
+  void SetUlOffsetBw(int o);
+  void SetDlOffsetBw(int o);
 
-	void SetUlBandwidth (double b);
-	void SetDlBandwidth (double b);
-	void SetUlOffsetBw (int o);
-	void SetDlOffsetBw (int o);
+  double GetUlBandwidth(void);
+  double GetDlBandwidth(void);
+  int GetUlOffsetBw(void);
+  int GetDlOffsetBw(void);
 
-	double GetUlBandwidth (void);
-	double GetDlBandwidth (void);
-	int GetUlOffsetBw (void);
-	int GetDlOffsetBw (void);
+  void AddSharedChannels(std::vector<double> shared_dlChannels,
+                         std::vector<double> shared_ulChannels,
+                         BandwidthManager &s);
 
+  std::vector<double> GetSharedDlChannels(int index, int num_shared_channels);
+  BandwidthManager *Copy();
 
-	BandwidthManager* Copy ();
-
-	void Print (void);
+  void Print(void);
 
 private:
-	std::vector<double> m_dlSubChannels;
-	std::vector<double> m_ulSubChannels;
+  std::vector<double> m_dlSubChannels;
+  std::vector<double> m_ulSubChannels;
 
-	int m_operativeSubBand;
+  int m_operativeSubBand;
 
-	double m_ulBandwidth;
-	double m_dlBandwidth;
+  double m_ulBandwidth;
+  double m_dlBandwidth;
 
-	int m_ulOffsetBw;
-	int m_dlOffsetBw;
+  int m_ulOffsetBw;
+  int m_dlOffsetBw;
 };
 
 #endif /* BandwidthManager_H_ */
