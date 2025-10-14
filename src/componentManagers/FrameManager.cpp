@@ -269,7 +269,8 @@ void FrameManager::CentralDownlinkRBsAllocation(void) {
       schedulers[j]->StopSchedule();
     return;
   }
-  // Handle asymmetric RB allocation - each cell may have different number of RBs
+  // Handle asymmetric RB allocation - each cell may have different number of
+  // RBs
   for (size_t j = 0; j < schedulers.size(); j++) {
     int nb_of_rbs = schedulers[j]
                         ->GetMacEntity()
@@ -278,8 +279,26 @@ void FrameManager::CentralDownlinkRBsAllocation(void) {
                         ->GetBandwidthManager()
                         ->GetDlSubChannels()
                         .size();
+    // print DL Subchannels for each cell
+    if (GetTTICounter() < 102) {
+      std::cout << "Cell " << j << " DL Subchannels size: " << nb_of_rbs
+                << "\t";
+      auto dl_subchannels = schedulers[j]
+                                ->GetMacEntity()
+                                ->GetDevice()
+                                ->GetPhy()
+                                ->GetBandwidthManager()
+                                ->GetDlSubChannels();
+      std::cout << "Freqs: ";
+      for (auto subchannel : dl_subchannels) {
+        std::cout << subchannel << " ";
+      }
+      std::cout << std::endl;
+    }
     int rb_id = 0;
     while (rb_id < nb_of_rbs) { // Allocate in the form of PRBG of size 8
+      cout << "Scheduling for RB: " << rb_id << " - " << 2110 + (0.18 * rb_id)
+           << endl;
       AllocateRBs(schedulers, rb_id, j);
       rb_id += RBG_SIZE;
     }
@@ -291,48 +310,50 @@ void FrameManager::CentralDownlinkRBsAllocation(void) {
 }
 
 void FrameManager::AllocateRBs(
-    std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id, int cell_index) {
+    std::vector<DownlinkPacketScheduler *> &schedulers, int rb_id,
+    int cell_index) {
   // Only allocate for the specific cell
   if (cell_index >= (int)schedulers.size()) {
     return;
   }
-  
+
   RadioSaberDownlinkScheduler *scheduler =
       (RadioSaberDownlinkScheduler *)schedulers[cell_index];
   FlowsToSchedule *flows = scheduler->GetFlowsToSchedule();
-  
+
   if (flows->size() == 0) {
+    std::cout << "ERROR: No flows to schedule for cell: " << cell_index
+              << std::endl;
     return; // No flows to schedule for this cell
   }
-  
+
   AMCModule *amc = scheduler->GetMacEntity()->GetAmcModule();
   double max_metric = 0;
   FlowToSchedule *max_flow = nullptr;
-  
+
   for (auto it = flows->begin(); it != flows->end(); it++) {
     FlowToSchedule *flow = *it;
-    auto &rsrp_report = flow->GetRSRPReport();
-    // under the current muting assumption
     double spectraleff_rbg = 0.0;
     for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {
       int cqi = flow->GetCqiFeedbacks().at(i);
       double se = amc->GetEfficiencyFromCQI(cqi);
       spectraleff_rbg += se;
     }
-    double metric = scheduler->ComputeSchedulingMetric(
-        flow->GetBearer(), spectraleff_rbg, rb_id);
+    double metric = scheduler->ComputeSchedulingMetric(flow->GetBearer(),
+                                                       spectraleff_rbg, rb_id);
     if (metric > max_metric) {
       max_metric = metric;
       max_flow = flow;
     }
   }
-  
+
   // Skip allocation if no flow is available for this scheduler
   if (max_flow == nullptr) {
+    cout << "WARNING: No flow selected for cell: " << cell_index
+         << " at RB: " << rb_id << std::endl;
     return;
   }
-  
-  auto &rsrp_report = max_flow->GetRSRPReport();
+
   scheduler->slice_rbgs_quota_[max_flow->GetSliceID()] -= 1;
   for (int i = rb_id; i < RBG_SIZE + rb_id; i++) {
     max_flow->GetListOfAllocatedRBs()->push_back(i);

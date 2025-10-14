@@ -26,6 +26,7 @@
 #include "../core/spectrum/bandwidth-manager.h"
 #include "stdlib.h"
 #include <algorithm>
+#include <cassert>
 #include <iomanip>
 #include <math.h>
 #include <stdint.h>
@@ -98,17 +99,32 @@ RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
               << ", RBs per cell: " << rbsPerCell
               << ", Remainder: " << remainderRBs << std::endl;
 
+    // Randomly select which cells get the remainder RBs
+    std::vector<int> extraRBs(nodes, 0);
+    if (!reuse && remainderRBs > 0) {
+      std::vector<int> indices(nodes);
+      for (int i = 0; i < nodes; i++)
+        indices[i] = i;
+      // Shuffle indices and pick first remainderRBs cells
+      for (int i = nodes - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+        std::swap(indices[i], indices[j]);
+      }
+      for (int i = 0; i < remainderRBs; i++) {
+        extraRBs[indices[i]] = 1;
+      }
+    }
+
     int currentOffset = default_offset;
+    int totalAllocated = 0;
     for (int i = 0; i < nodes; i++) {
       int cellRBs = rbsPerCell;
 
       int cellOffset = currentOffset;
       if (!reuse) {
-        // Give remainder RBs to the last cell(s). You could also choose the
-        // first ones.
-        if (i >= nodes - remainderRBs) {
-          cellRBs++;
-        }
+        // Add randomly distributed remainder RBs
+        cellRBs += extraRBs[i];
+        totalAllocated += cellRBs;
       } else {
         // Reuse: all cells share the same RBs and offset
         cellOffset = default_offset;
@@ -117,6 +133,13 @@ RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
       std::cout << "Cell " << i << ": RBs=" << cellRBs
                 << ", Offset=" << cellOffset << (reuse ? " (reuse)" : "")
                 << std::endl;
+      if (reuse) {
+        cout << "Cell " << i << ": Total Users=" << 0 << ", Isolated RBs=" << 0
+             << ", Reuse RBs=" << cellRBs << endl;
+      } else {
+        cout << "Cell " << i << ": Total Users=" << 0
+             << ", Isolated RBs=" << cellRBs << ", Reuse RBs=" << 0 << endl;
+      }
 
       // Use explicit RB-count constructor so the subchannel list length matches
       // cellRBs
@@ -128,6 +151,14 @@ RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
       if (!reuse) {
         currentOffset += cellRBs;
       }
+    }
+
+    // Assert that all RBs have been allocated (only for static partitioning)
+    if (!reuse) {
+      assert(totalAllocated == totalRBs &&
+             "All RBs must be allocated to cells");
+      std::cout << "FDD Assertion passed: All " << totalRBs << " RBs allocated"
+                << std::endl;
     }
   } else // case TDD
   {
@@ -173,15 +204,32 @@ RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
               << ", RBs per cell: " << rbsPerCell
               << ", Remainder: " << remainderRBs << std::endl;
 
+    // Randomly select which cells get the remainder RBs
+    std::vector<int> extraRBs(nodes, 0);
+    if (!reuse && remainderRBs > 0) {
+      std::vector<int> indices(nodes);
+      for (int i = 0; i < nodes; i++)
+        indices[i] = i;
+      // Shuffle indices and pick first remainderRBs cells
+      for (int i = nodes - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+        std::swap(indices[i], indices[j]);
+      }
+      for (int i = 0; i < remainderRBs; i++) {
+        extraRBs[indices[i]] = 1;
+      }
+    }
+
     int currentOffset = default_offset;
+    int totalAllocated = 0;
     for (int i = 0; i < nodes; i++) {
       int cellRBs = rbsPerCell;
 
       int cellOffset = currentOffset;
       if (!reuse) {
-        if (i >= nodes - remainderRBs) {
-          cellRBs++;
-        }
+        // Add randomly distributed remainder RBs
+        cellRBs += extraRBs[i];
+        totalAllocated += cellRBs;
       } else {
         cellOffset = default_offset;
       }
@@ -197,6 +245,14 @@ RunFrequencyReuseTechniques(int nodes, bool reuse, double bandwidth,
       if (!reuse) {
         currentOffset += cellRBs;
       }
+    }
+
+    // Assert that all RBs have been allocated (only for static partitioning)
+    if (!reuse) {
+      assert(totalAllocated == totalRBs &&
+             "All RBs must be allocated to cells");
+      std::cout << "TDD Assertion passed: All " << totalRBs << " RBs allocated"
+                << std::endl;
     }
   }
 
@@ -245,33 +301,68 @@ DivideResourcesProportional(int nodes, double bandwidth,
   cout << "Total " << allocation_type << " Weight: " << total_weight << endl;
   cout << "Total RBs: " << totalRBs << endl;
 
-  // Allocate resources proportionally
-  int currentOffset = 0;
-  for (int i = 0; i < nodes; i++) {
-    int cellRBs = 0;
+  // Allocate resources proportionally and calculate remainder
+  std::vector<int> cellRBs(nodes, 0);
+  int allocatedRBs = 0;
 
+  for (int i = 0; i < nodes; i++) {
     if (total_weight > 0 &&
         allocation_weights.find(i) != allocation_weights.end()) {
       // Calculate RBs proportionally to the weight for this cell
-      cellRBs = (totalRBs * allocation_weights[i]) / total_weight;
+      cellRBs[i] = (totalRBs * allocation_weights[i]) / total_weight;
+      allocatedRBs += cellRBs[i];
+    }
+  }
+
+  // Calculate remainder RBs and distribute them randomly
+  int remainderRBs = totalRBs - allocatedRBs;
+  if (remainderRBs > 0) {
+    std::vector<int> indices;
+    for (int i = 0; i < nodes; i++) {
+      if (allocation_weights.find(i) != allocation_weights.end() &&
+          allocation_weights[i] > 0) {
+        indices.push_back(i);
+      }
     }
 
-    // // Ensure minimum of 1 RB per cell if requested and cell has weight
-    if (ensure_minimum && cellRBs == 0 && allocation_weights[i] > 0) {
-      cellRBs = 1;
+    // Shuffle indices
+    for (int i = indices.size() - 1; i > 0; i--) {
+      int j = rand() % (i + 1);
+      std::swap(indices[i], indices[j]);
     }
 
-    cout << "Cell " << i << ": Weight=" << allocation_weights[i]
-         << ", RBs=" << cellRBs << endl;
+    // Distribute remainder RBs
+    for (int i = 0; i < remainderRBs && i < (int)indices.size(); i++) {
+      cellRBs[indices[i]]++;
+    }
+  }
+
+  cout << "Allocated RBs: " << allocatedRBs << ", Remainder: " << remainderRBs
+       << endl;
+
+  // Create BandwidthManager objects
+  int currentOffset = 0;
+  int totalFinalAllocated = 0;
+  for (int i = 0; i < nodes; i++) {
+    cout << "Cell " << i << ": Total Users=" << allocation_weights[i]
+         << ", Isolated RBs=" << cellRBs[i] << ", Reuse RBs=" << 0 << endl;
 
     // Create BandwidthManager with the calculated RBs
-    BandwidthManager *s = new BandwidthManager(
-        bandwidth, bandwidth, currentOffset, currentOffset, cellRBs, cellRBs);
+    BandwidthManager *s =
+        new BandwidthManager(bandwidth, bandwidth, currentOffset, currentOffset,
+                             cellRBs[i], cellRBs[i]);
     spectrum.push_back(s);
 
     // Update offset for next cell
-    currentOffset += cellRBs;
+    currentOffset += cellRBs[i];
+    totalFinalAllocated += cellRBs[i];
   }
+
+  // Assert that all RBs have been allocated
+  assert(totalFinalAllocated == totalRBs &&
+         "All RBs must be allocated to cells");
+  std::cout << "Proportional Assertion passed: All " << totalRBs
+            << " RBs allocated" << std::endl;
 
   return spectrum;
 }
@@ -332,18 +423,41 @@ DivideResourcesIdeal(int nodes, double bandwidth,
   // Step 1: base contiguous blocks per cell (handle remainder cleanly)
   std::vector<int> blockStart(nodes, 0), blockEnd(nodes, 0),
       blockSize(nodes, 0);
-  int base = totalRBs / nodes;
-  int rem = totalRBs % nodes;
+  int base = totalRBs / nodes; // 12
+  int rem = totalRBs % nodes;  // 1
+
+  // Randomly select which cells get the remainder RBs
+  std::vector<int> extraRBs(nodes, 0);
+  if (rem > 0) {
+    std::vector<int> indices(nodes);
+    for (int i = 0; i < nodes; i++)
+      indices[i] = i;
+    // Shuffle indices and pick first rem cells
+    for (int i = nodes - 1; i > 0; i--) {
+      int j = rand() % (i + 1);
+      std::swap(indices[i], indices[j]);
+    }
+    for (int i = 0; i < rem; i++) {
+      extraRBs[indices[i]] = 1;
+    }
+  }
 
   int cursor = 0;
+  int totalBlockSize = 0;
   for (int i = 0; i < nodes; ++i) {
-    blockSize[i] = base + (i < rem ? 1 : 0);
+    blockSize[i] = base + extraRBs[i];
     blockStart[i] = cursor;
     blockEnd[i] = cursor + blockSize[i]; // exclusive
     cursor = blockEnd[i];
+    totalBlockSize += blockSize[i];
   }
 
-  // Step 2: per-cell isolated/reuse counts (bounded by each cell’s block size)
+  // Assert that all RBs have been allocated to block sizes
+  assert(totalBlockSize == totalRBs && "All RBs must be allocated to cells");
+  std::cout << "Ideal Assertion passed: All " << totalRBs << " RBs allocated"
+            << std::endl;
+
+  // Step 2: per-cell isolated/reuse counts (bounded by each cell's block size)
   std::vector<int> isolatedRBs(nodes, 0), reuseRBs(nodes, 0);
   int totalIsolatedRBs = 0;
 
@@ -364,18 +478,32 @@ DivideResourcesIdeal(int nodes, double bandwidth,
     isolatedRBs[i] = iso;
     reuseRBs[i] = rsz;
     totalIsolatedRBs += iso;
-
-    cout << "Cell " << i << ": Total Users=" << totalUsers
-         << ", Interference Users=" << interferenceUsers
-         << ", Interference Fraction=" << std::fixed << std::setprecision(2)
-         << frac * 100 << "%"
-         << ", Block=[" << blockStart[i] << "-" << (blockEnd[i] - 1) << "]"
-         << ", Isolated RBs=" << iso << ", Reuse RBs=" << rsz << endl;
   }
 
   int totalReuseRBs = totalRBs - totalIsolatedRBs;
   cout << "Total Isolated RBs: " << totalIsolatedRBs << endl;
   cout << "Total Reuse RBs: " << totalReuseRBs << endl;
+  // After computing totals, print per-cell stats with Reuse RBs set to the
+  // final totalIsolatedRBs (instead of per-cell rsz)
+  for (int i = 0; i < nodes; ++i) {
+    int totalUsers =
+        (total_users_per_cell.count(i) ? total_users_per_cell[i] : 0);
+    int interferenceUsers =
+        (int_impacted_users.count(i) ? int_impacted_users[i] : 0);
+    double frac =
+        (totalUsers > 0) ? double(interferenceUsers) / totalUsers : 0.0;
+
+    int iso = isolatedRBs[i];
+
+    cout << "Cell " << i << ": Total Users=" << totalUsers
+         << ", Isolated RBs=" << iso << ", Reuse RBs=" << totalReuseRBs
+         << " , Allocated RBs=" << blockSize[i]
+         << ", Interference Users=" << interferenceUsers
+         << ", Interference Fraction=" << std::fixed << std::setprecision(2)
+         << frac * 100 << "%"
+         << ", Block=[" << blockStart[i] << "-" << (blockEnd[i] - 1) << "]"
+         << endl;
+  }
 
   // Step 3: place isolated & reuse ranges to maximize shared contiguity
   // Policy:
@@ -481,6 +609,9 @@ DivideResourcesIdeal(int nodes, double bandwidth,
         ul.push_back(1920.0 + rb * 0.18);
       }
     }
+    // sort dl and ul
+    std::sort(dl.begin(), dl.end());
+    std::sort(ul.begin(), ul.end());
 
     s->SetDlSubChannels(dl);
     s->SetUlSubChannels(ul);

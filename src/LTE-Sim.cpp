@@ -145,7 +145,9 @@ int main(int argc, char *argv[]) {
       double bandwidth = stod(argv[19]);
       int reuse_policy = atoi(argv[20]);
       int seed = -1;
-      if (argc == 21)
+      // Expect an optional seed as argv[21]; argc must be >= 22
+      // (argv[0]..argv[21])
+      if (argc >= 22)
         seed = atoi(argv[21]);
       MultiCell(nbCells, radius, nbUE, nbVoIP, nbVideo, nbBE, nbCBR, sched_type,
                 frame_struct, speed, maxDelay, video_bit_rate, config_fname,

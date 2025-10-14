@@ -87,15 +87,19 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
   FrameManager *frameManager = FrameManager::Init();
   NetworkManager *nm = NetworkManager::Init();
 
-  // CONFIGURE SEED
+  // CONFIGURE SEED (single source of truth)
+  int effectiveSeed;
   if (seed >= 0) {
-    int commonSeed = GetCommonSeed(seed);
-    srand(commonSeed);
-    std::mt19937 gen(commonSeed); // Initialize Mersenne Twister random number
+    effectiveSeed = GetCommonSeed(seed);
   } else {
-    srand(time(NULL));
+    effectiveSeed = static_cast<int>(time(NULL));
   }
-  std::cout << "Simulation with SEED = " << seed << std::endl;
+  // Seed C RNG used by rand()
+  srand(effectiveSeed);
+  // Note: prefer std::mt19937 where possible; we'll use effectiveSeed for those
+  std::cout << "Simulation with SEED = " << seed
+            << " (effective common seed = " << effectiveSeed << ")"
+            << std::endl;
   cout << "Inter Micro distance: " << inter_micro_distance << endl;
 
   // SET SCHEDULING ALLOCATION SCHEME
@@ -260,7 +264,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
     }
   }
   vector<CartesianCoordinates *> *positions =
-      GetInterferenceLimitedUsersDistribution(total_ues, seed);
+      GetInterferenceLimitedUsersDistribution(total_ues, effectiveSeed);
   std::vector<BandwidthManager *> spectrums;
   if (reuse_policy == 0) { // STATIC PARTITIONING
     cout << "Freq Reuse Policy: Static Partitioning" << endl;
@@ -283,7 +287,8 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
     std::map<int, int> interference_impacted_users =
         GetInterferenceLimitedUsersPerCell(*positions, nm);
     std::map<int, int> ues_per_cell = GetUEsPerCell(*positions, nm);
-    spectrums = DivideResourcesIdeal(nbCell, bandwidth, interference_impacted_users, ues_per_cell);
+    spectrums = DivideResourcesIdeal(nbCell, bandwidth,
+                                     interference_impacted_users, ues_per_cell);
   } else {
     // Throw an exception and kill the program
     throw std::runtime_error("Error: Invalid freq reuse policy selected.");
@@ -306,6 +311,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
   std::vector<ENodeB *> *eNBs = new std::vector<ENodeB *>;
   i = 0;
   for (; i < num_macro; i++) {
+    spectrums.at(i)->Print();
     ENodeB *enb = new ENodeB(i, cells->at(i));
     enb->GetPhy()->SetTxPower(49);
     enb->GetPhy()->SetDlChannel(dlChannels->at(i));
@@ -322,7 +328,6 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
         << ", channels id " << enb->GetPhy()->GetDlChannel()->GetChannelId()
         << enb->GetPhy()->GetUlChannel()->GetChannelId() << std::endl;
 
-    spectrums.at(i)->Print();
     ulChannels->at(i)->AddDevice((NetworkNode *)enb);
     nm->GetENodeBContainer()->push_back(enb);
     eNBs->push_back(enb);
@@ -398,7 +403,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
   }
 
   // Shuffle the array using a local random number generator
-  std::mt19937 rng(seed); // Use a fixed seed value
+  std::mt19937 rng(effectiveSeed); // Use a fixed seed value
   std::shuffle(mobility_array.begin(), mobility_array.end(), rng);
 
   // Ensure the array has exactly total_ues elements
@@ -697,7 +702,7 @@ static void MultiCell(int nbCell, double radius, int nbUE, int nbVoIP,
           // heavy tail distributed internet flows with const bitrate
           double flow_rate =
               config.if_bitrate[0] / slice_users[user_to_slice[idUE]];
-          InternetFlow *ip_app = new InternetFlow(seed + idUE);
+          InternetFlow *ip_app = new InternetFlow(effectiveSeed + idUE);
           IFApplication.push_back(ip_app);
           ip_app->SetSource(gw);
           ip_app->SetDestination(ue);

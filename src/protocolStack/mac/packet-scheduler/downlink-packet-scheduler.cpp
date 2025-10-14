@@ -331,6 +331,7 @@ int DownlinkPacketScheduler::FinalizeScheduledFlows(void) {
       double linear_tbs = 0;
       for (auto it = allocated_rbs->begin(); it != allocated_rbs->end(); it++) {
         int rb_id = *it;
+        cout << "RB ID: " << 2110 + (rb_id * 0.18) << endl;
         int cqi = flow->GetCqiFeedbacks().at(rb_id);
         double sinr = amc->GetSinrFromCQI(cqi);
         sinr_values.push_back(sinr);
@@ -340,6 +341,7 @@ int DownlinkPacketScheduler::FinalizeScheduledFlows(void) {
       int cqi = amc->GetCQIFromSinr(effective_sinr);
       int mcs = amc->GetMCSFromCQI(cqi);
       int tbs_size = amc->GetTBSizeFromMCS(mcs, allocated_rbs->size());
+      // int tbs_size = linear_tbs;
       flow->UpdateAllocatedBits(tbs_size);
       total_tbs += tbs_size;
 
