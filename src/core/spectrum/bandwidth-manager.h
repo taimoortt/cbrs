@@ -71,9 +71,31 @@ public:
 
   void Print(void);
 
+  // --- New global RB identity helpers (Phase 1) ---
+  // Return vector of global RB indices aligned 1:1 with GetDlSubChannels()
+  // If not explicitly set, falls back to contiguous mapping starting at
+  // m_dlOffsetBw.
+  std::vector<int> GetDlGlobalRbIndices() const;
+  void SetDlGlobalRbIndices(const std::vector<int> &idx);
+  // UL (kept for completeness though not yet used in scheduling changes)
+  std::vector<int> GetUlGlobalRbIndices() const;
+  void SetUlGlobalRbIndices(const std::vector<int> &idx);
+
+  // Recompute global RB indices from current frequency lists using base
+  // frequency 2110 MHz (DL) / 1920 MHz (UL) and 0.18 MHz spacing. This is
+  // idempotent and can be called after any manual modification to subchannel
+  // lists.
+  void RecomputeGlobalIndicesFromFrequencies();
+
 private:
   std::vector<double> m_dlSubChannels;
   std::vector<double> m_ulSubChannels;
+
+  // Parallel vectors holding absolute/global RB indices. Size matches
+  // respective subchannel vectors when set. If empty, implicit contiguous
+  // mapping is assumed.
+  std::vector<int> m_dlGlobalRbIndices;
+  std::vector<int> m_ulGlobalRbIndices;
 
   int m_operativeSubBand;
 

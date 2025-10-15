@@ -50,7 +50,6 @@ struct Allocation {
 
 class FrameManager {
 public:
-  static const int RBG_SIZE = 1;
   enum FrameStructure { FRAME_STRUCTURE_FDD, FRAME_STRUCTURE_TDD };
 
 private:

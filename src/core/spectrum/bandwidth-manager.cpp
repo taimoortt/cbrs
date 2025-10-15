@@ -20,6 +20,7 @@
  */
 
 #include "bandwidth-manager.h"
+#include <cmath>
 #include <iostream>
 
 #define UL_LOW_FREQUENCY_BAND_1 1920  // MHz
@@ -53,68 +54,84 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
   if (dlBw == 1.4) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_1_4_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 3) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_3_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 5) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_5_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 10) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_10_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 15) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_15_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 20) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_20_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 50) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_50_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 100) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_100_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_5_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
     }
   }
 
   if (ulBw == 1.4) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_1_4_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 3) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_3_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 5) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_5_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 10) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_10_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 15) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_15_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 20) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_20_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_5_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
     }
   }
 }
@@ -135,36 +152,50 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
     for (int i = dlOffset; i < dlOffset + RBs_FOR_1_4_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 3) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_3_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 5) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_5_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 10) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_10_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 15) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_15_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else if (dlBw == 20) {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_20_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   } else {
     for (int i = dlOffset; i < dlOffset + RBs_FOR_5_MHz; i++) {
       m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_ulSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_dlGlobalRbIndices.push_back(i);
+      m_ulGlobalRbIndices.push_back(i);
     }
   }
 
@@ -172,36 +203,50 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
     for (int i = ulOffset; i < ulOffset + RBs_FOR_1_4_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 3) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_3_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 5) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_5_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 10) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_10_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 15) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_15_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else if (ulBw == 20) {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_20_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   } else {
     for (int i = ulOffset; i < ulOffset + RBs_FOR_5_MHz; i++) {
       m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
       m_dlSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+      m_ulGlobalRbIndices.push_back(i);
+      m_dlGlobalRbIndices.push_back(i);
     }
   }
 }
@@ -223,11 +268,13 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
   // Fill exactly dlRbs starting from dlOffset
   for (int i = dlOffset; i < dlOffset + dlRbs; i++) {
     m_dlSubChannels.push_back(DL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+    m_dlGlobalRbIndices.push_back(i);
   }
 
   // Fill exactly ulRbs starting from ulOffset
   for (int i = ulOffset; i < ulOffset + ulRbs; i++) {
     m_ulSubChannels.push_back(UL_LOW_FREQUENCY_BAND_1 + (i * 0.18));
+    m_ulGlobalRbIndices.push_back(i);
   }
 }
 
@@ -278,12 +325,16 @@ BandwidthManager::BandwidthManager(double ulBw, double dlBw, int ulOffset,
     double f = DL_LOW_FREQUENCY_BAND_1 + (i * 0.18);
     m_dlSubChannels.push_back(f);
     m_ulSubChannels.push_back(f);
+    m_dlGlobalRbIndices.push_back(i);
+    m_ulGlobalRbIndices.push_back(i);
   }
 
   for (int i = ulOffset; i < ulOffset + ulRbs; i++) {
     double f = UL_LOW_FREQUENCY_BAND_1 + (i * 0.18);
     m_ulSubChannels.push_back(f);
     m_dlSubChannels.push_back(f);
+    m_ulGlobalRbIndices.push_back(i);
+    m_dlGlobalRbIndices.push_back(i);
   }
 }
 
@@ -291,6 +342,8 @@ BandwidthManager::~BandwidthManager() {}
 
 void BandwidthManager::SetDlSubChannels(std::vector<double> s) {
   m_dlSubChannels = s;
+  // Invalidate indices; recompute lazily
+  m_dlGlobalRbIndices.clear();
 }
 
 std::vector<double> BandwidthManager::GetDlSubChannels(void) {
@@ -299,6 +352,7 @@ std::vector<double> BandwidthManager::GetDlSubChannels(void) {
 
 void BandwidthManager::SetUlSubChannels(std::vector<double> s) {
   m_ulSubChannels = s;
+  m_ulGlobalRbIndices.clear();
 }
 
 std::vector<double> BandwidthManager::GetUlSubChannels(void) {
@@ -334,8 +388,62 @@ BandwidthManager *BandwidthManager::Copy() {
   s->SetDlSubChannels(GetDlSubChannels());
   s->SetUlSubChannels(GetUlSubChannels());
   s->SetOperativeSubBand(GetOperativeSubBand());
+  s->m_dlGlobalRbIndices = m_dlGlobalRbIndices;
+  s->m_ulGlobalRbIndices = m_ulGlobalRbIndices;
 
   return s;
+}
+
+// ---- Global RB identity helpers implementation ----
+std::vector<int> BandwidthManager::GetDlGlobalRbIndices() const {
+  if (!m_dlGlobalRbIndices.empty())
+    return m_dlGlobalRbIndices;
+  // derive contiguous indices starting from first freq base
+  std::vector<int> derived;
+  derived.reserve(m_dlSubChannels.size());
+  for (size_t i = 0; i < m_dlSubChannels.size(); ++i) {
+    // Map frequency to index using base and spacing
+    double delta = (m_dlSubChannels[i] - DL_LOW_FREQUENCY_BAND_1) / 0.18;
+    int idx = (int)std::floor(delta + 0.5);
+    derived.push_back(idx);
+  }
+  return derived;
+}
+
+void BandwidthManager::SetDlGlobalRbIndices(const std::vector<int> &idx) {
+  m_dlGlobalRbIndices = idx;
+}
+
+std::vector<int> BandwidthManager::GetUlGlobalRbIndices() const {
+  if (!m_ulGlobalRbIndices.empty())
+    return m_ulGlobalRbIndices;
+  std::vector<int> derived;
+  derived.reserve(m_ulSubChannels.size());
+  for (size_t i = 0; i < m_ulSubChannels.size(); ++i) {
+    double delta = (m_ulSubChannels[i] - UL_LOW_FREQUENCY_BAND_1) / 0.18;
+    int idx = (int)std::floor(delta + 0.5);
+    derived.push_back(idx);
+  }
+  return derived;
+}
+
+void BandwidthManager::SetUlGlobalRbIndices(const std::vector<int> &idx) {
+  m_ulGlobalRbIndices = idx;
+}
+
+void BandwidthManager::RecomputeGlobalIndicesFromFrequencies() {
+  m_dlGlobalRbIndices.clear();
+  m_ulGlobalRbIndices.clear();
+  for (double f : m_dlSubChannels) {
+    double delta = (f - DL_LOW_FREQUENCY_BAND_1) / 0.18;
+    int idx = (int)std::floor(delta + 0.5);
+    m_dlGlobalRbIndices.push_back(idx);
+  }
+  for (double f : m_ulSubChannels) {
+    double delta = (f - UL_LOW_FREQUENCY_BAND_1) / 0.18;
+    int idx = (int)std::floor(delta + 0.5);
+    m_ulGlobalRbIndices.push_back(idx);
+  }
 }
 
 void BandwidthManager::Print(void) {

@@ -390,6 +390,7 @@ DivideResourcesIdeal(int nodes, double bandwidth,
   std::vector<BandwidthManager *> spectrum;
   int totalRBs = 0;
   cout << "Bandwidth: " << bandwidth << " MHz" << std::endl;
+  int_impacted_users[1] = 0;
 
   // Calculate total RBs based on bandwidth
   if (bandwidth == 1.4) {
@@ -602,19 +603,52 @@ DivideResourcesIdeal(int nodes, double bandwidth,
     std::vector<double> dl = s->GetDlSubChannels();
     std::vector<double> ul = s->GetUlSubChannels();
 
+    // Track global RB indices parallel to frequency vectors
+    std::vector<int> dlGlobalIdx;
+    std::vector<int> ulGlobalIdx;
+    // existing dl/ul currently hold isolated part only. Build indices.
+    for (int rb = isoStart[i]; rb < isoEnd[i]; ++rb) {
+      dlGlobalIdx.push_back(rb);
+      ulGlobalIdx.push_back(rb); // mirror mapping for now
+    }
+
     // Append GLOBAL shared channels (union of every cell’s reuse segments)
     for (auto seg : merged) {
       for (int rb = seg.first; rb < seg.second; ++rb) {
         dl.push_back(2110.0 + rb * 0.18);
         ul.push_back(1920.0 + rb * 0.18);
+        dlGlobalIdx.push_back(rb);
+        ulGlobalIdx.push_back(rb);
       }
     }
-    // sort dl and ul
-    std::sort(dl.begin(), dl.end());
-    std::sort(ul.begin(), ul.end());
+    // Ensure consistent ordering of (freq, idx) pairs by sorting composite
+    // pairs then re-splitting.
+    std::vector<std::pair<double, int>> dlPairs, ulPairs;
+    dlPairs.reserve(dl.size());
+    ulPairs.reserve(ul.size());
+    for (size_t k = 0; k < dl.size(); ++k)
+      dlPairs.push_back({dl[k], dlGlobalIdx[k]});
+    for (size_t k = 0; k < ul.size(); ++k)
+      ulPairs.push_back({ul[k], ulGlobalIdx[k]});
+    std::sort(dlPairs.begin(), dlPairs.end());
+    std::sort(ulPairs.begin(), ulPairs.end());
+    dl.clear();
+    dlGlobalIdx.clear();
+    ul.clear();
+    ulGlobalIdx.clear();
+    for (auto &p : dlPairs) {
+      dl.push_back(p.first);
+      dlGlobalIdx.push_back(p.second);
+    }
+    for (auto &p : ulPairs) {
+      ul.push_back(p.first);
+      ulGlobalIdx.push_back(p.second);
+    }
 
-    s->SetDlSubChannels(dl);
+    s->SetDlSubChannels(dl); // this invalidates indices; set them explicitly
     s->SetUlSubChannels(ul);
+    s->SetDlGlobalRbIndices(dlGlobalIdx);
+    s->SetUlGlobalRbIndices(ulGlobalIdx);
     spectrum.push_back(s);
 
     cout << "Cell " << i << " Final Allocation: " << isoCount << " isolated + "

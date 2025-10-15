@@ -37,6 +37,7 @@
 #include <cmath>
 #include <cstdio>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 #include <unordered_set>
 using SchedulerAlgo = SliceContext::SchedulerAlgo;
@@ -296,9 +297,23 @@ void FrameManager::CentralDownlinkRBsAllocation(void) {
       std::cout << std::endl;
     }
     int rb_id = 0;
-    while (rb_id < nb_of_rbs) { // Allocate in the form of PRBG of size 8
-      cout << "Scheduling for RB: " << rb_id << " - " << 2110 + (0.18 * rb_id)
-           << endl;
+    while (rb_id < nb_of_rbs) { // Allocate in the form of PRBG of size RBG_SIZE
+      auto *bm = schedulers[j]
+                     ->GetMacEntity()
+                     ->GetDevice()
+                     ->GetPhy()
+                     ->GetBandwidthManager();
+      const std::vector<double> &dl_subchannels = bm->GetDlSubChannels();
+      std::vector<int> global_indices = bm->GetDlGlobalRbIndices();
+      int group_size = std::min(RBG_SIZE, nb_of_rbs - rb_id);
+      // std::ostringstream oss;
+      // oss << "Scheduling RBG: local_start=" << rb_id << " size=" <<
+      // group_size; for (int li = rb_id; li < rb_id + group_size; ++li) {
+      //   double freq = dl_subchannels[li];
+      //   int g = (li < (int)global_indices.size()) ? global_indices[li] : -1;
+      //   oss << " [l=" << li << " g=" << g << " fMHz=" << freq << "]";
+      // }
+      // std::cout << oss.str() << std::endl;
       AllocateRBs(schedulers, rb_id, j);
       rb_id += RBG_SIZE;
     }

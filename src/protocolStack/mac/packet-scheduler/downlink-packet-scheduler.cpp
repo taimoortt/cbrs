@@ -38,6 +38,7 @@
 #include <cassert>
 #include <fstream>
 #include <jsoncpp/json/json.h>
+#include <sstream>
 #define WINDOW_SIZE 100
 
 DownlinkPacketScheduler::DownlinkPacketScheduler(std::string config_fname) {
@@ -289,16 +290,36 @@ void DownlinkPacketScheduler::RBsAllocation() {
 #ifdef SCHEDULER_DEBUG
   for (size_t ii = 0; ii < flows->size(); ii++) {
     FlowToSchedule *flow = flows->at(ii);
-    std::cout << "Flow("
-              << flow->GetBearer()->GetApplication()->GetApplicationID()
-              << ") allocated RBs:";
-    for (size_t i = 0; i < flow->GetListOfAllocatedRBs()->size(); i++) {
-      int rbid = flow->GetListOfAllocatedRBs()->at(i);
-      fprintf(stdout, " %d(%d, %.3f, %.3f)", rbid,
-              flow->GetCqiFeedbacks().at(rbid),
-              flow->GetSpectralEfficiency().at(rbid), metrics[rbid][ii]);
+    std::vector<int> *rbList = flow->GetListOfAllocatedRBs();
+    auto *bm = GetMacEntity()->GetDevice()->GetPhy()->GetBandwidthManager();
+    std::vector<double> dlFreqs = bm->GetDlSubChannels();
+    std::vector<int> globalIdx = bm->GetDlGlobalRbIndices();
+
+    std::ostringstream oss;
+    oss << "Flow(" << flow->GetBearer()->GetApplication()->GetApplicationID()
+        << ") allocated RBs:";
+    std::vector<double> freqList;
+    for (size_t i = 0; i < rbList->size(); i++) {
+      int local = rbList->at(i);
+      int global_rb =
+          (local < (int)globalIdx.size()) ? globalIdx[local] : local;
+      double freq = (local < (int)dlFreqs.size()) ? dlFreqs[local]
+                                                  : 2110.0 + global_rb * 0.18;
+      freqList.push_back(freq);
+      oss << " " << local << "(g=" << global_rb << ",f=" << freq
+          << ",cqi=" << flow->GetCqiFeedbacks().at(local)
+          << ",se=" << flow->GetSpectralEfficiency().at(local)
+          << ",metric=" << metrics[local][ii] << ")";
     }
-    std::cout << std::endl;
+    // Append concise frequency list for downstream parsing
+    oss << " allocated_rbs=[";
+    for (size_t k = 0; k < freqList.size(); ++k) {
+      oss << freqList[k];
+      if (k + 1 < freqList.size())
+        oss << ",";
+    }
+    oss << "]";
+    std::cout << oss.str() << std::endl;
   }
 #endif
 
@@ -328,12 +349,35 @@ int DownlinkPacketScheduler::FinalizeScheduledFlows(void) {
       std::vector<double> individual_sinr_values =
           flow->GetRSRPReport().rx_power;
 
+      // Retrieve global RB mapping from BandwidthManager (aligned with DL
+      // subchannels)
+      std::vector<int> globalIdx = GetMacEntity()
+                                       ->GetDevice()
+                                       ->GetPhy()
+                                       ->GetBandwidthManager()
+                                       ->GetDlGlobalRbIndices();
+      std::vector<double> dlFreqs = GetMacEntity()
+                                        ->GetDevice()
+                                        ->GetPhy()
+                                        ->GetBandwidthManager()
+                                        ->GetDlSubChannels();
+
       double linear_tbs = 0;
       for (auto it = allocated_rbs->begin(); it != allocated_rbs->end(); it++) {
-        int rb_id = *it;
-        cout << "RB ID: " << 2110 + (rb_id * 0.18) << endl;
-        int cqi = flow->GetCqiFeedbacks().at(rb_id);
+        int local_rb_index = *it;
+        int global_rb = (local_rb_index < (int)globalIdx.size())
+                            ? globalIdx[local_rb_index]
+                            : local_rb_index; // fallback
+        double freq = (local_rb_index < (int)dlFreqs.size())
+                          ? dlFreqs[local_rb_index]
+                          : 2110.0 + global_rb * 0.18;
+        // cout << "RB local=" << local_rb_index << " global=" << global_rb
+        //      << " freqMHz=" << freq << endl;
+        int cqi = flow->GetCqiFeedbacks().at(local_rb_index);
         double sinr = amc->GetSinrFromCQI(cqi);
+        cout << "UE ID: "
+             << flow->GetBearer()->GetDestination()->GetIDNetworkNode()
+             << " RB Index: " << global_rb << " SINR: " << sinr << endl;
         sinr_values.push_back(sinr);
         linear_tbs += amc->GetEfficiencyFromCQI(cqi);
       }
@@ -352,8 +396,23 @@ int DownlinkPacketScheduler::FinalizeScheduledFlows(void) {
                 << " slice: "
                 << flow->GetBearer()->GetDestination()->GetSliceID()
                 << " nb_of_rbs: " << flow->GetListOfAllocatedRBs()->size()
-                << " eff_sinr: " << effective_sinr << " tbs_size: " << tbs_size
-                << std::endl;
+                << " eff_sinr: " << effective_sinr << " tbs_size: " << tbs_size;
+      // Append allocated_rbs frequency list to detailed flow summary too
+      std::vector<int> *rbList2 = flow->GetListOfAllocatedRBs();
+      auto *bm2 = GetMacEntity()->GetDevice()->GetPhy()->GetBandwidthManager();
+      std::vector<double> dlFreqs2 = bm2->GetDlSubChannels();
+      std::vector<int> globalIdx2 = bm2->GetDlGlobalRbIndices();
+      std::cout << " allocated_rbs=[";
+      for (size_t kk = 0; kk < rbList2->size(); ++kk) {
+        int local = rbList2->at(kk);
+        int g = (local < (int)globalIdx2.size()) ? globalIdx2[local] : local;
+        double f = (local < (int)dlFreqs2.size()) ? dlFreqs2[local]
+                                                  : 2110.0 + g * 0.18;
+        std::cout << f;
+        if (kk + 1 < rbList2->size())
+          std::cout << ",";
+      }
+      std::cout << "]" << std::endl;
 #endif
       for (auto it = allocated_rbs->begin(); it != allocated_rbs->end(); it++) {
         pdcchMsg->AddNewRecord(PdcchMapIdealControlMessage::DOWNLINK, *it,
