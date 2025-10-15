@@ -390,7 +390,6 @@ DivideResourcesIdeal(int nodes, double bandwidth,
   std::vector<BandwidthManager *> spectrum;
   int totalRBs = 0;
   cout << "Bandwidth: " << bandwidth << " MHz" << std::endl;
-  int_impacted_users[1] = 0;
 
   // Calculate total RBs based on bandwidth
   if (bandwidth == 1.4) {
